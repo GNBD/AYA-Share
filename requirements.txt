@@ -1,0 +1,7 @@
+flask
+customtkinter
+qrcode[pil]
+Pillow
+requests
+windnd
+waitress
