@@ -1,5 +1,8 @@
 # AYA Share
 
+<img width="699" height="820" alt="image" src="https://github.com/user-attachments/assets/29ed91a5-3b1b-48e1-a24a-cb8b31b56a23" />
+
+
 별도의 복잡한 설정 없이, 동일한 네트워크 환경이라면 파일을 주고받을 수 있습니다.
 모바일용 클라이언트가 필요없습니다.
 
