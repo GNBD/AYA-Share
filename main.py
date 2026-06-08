@@ -15,8 +15,17 @@ from functools import wraps
 from datetime import datetime, date
 from io import BytesIO
 
+def resource_path(relative_path):
+    """ Get absolute path to resource, works for dev and for PyInstaller """
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 import requests
 import urllib3
+import webbrowser
 import windnd
 
 import tkinter as tk
@@ -205,24 +214,24 @@ def _pick_items(parent_hwnd=0):
         ole32.CoUninitialize()
 
 # ── Flask App ──────────────────────────────────────────────────
-app = Flask(__name__)
+app = Flask(__name__, template_folder=resource_path("templates"))
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 * 1024
 
 BASE_DIR = Path(__file__).parent.resolve()
-STORAGE_DIR = BASE_DIR / "AYA share"
-STORAGE_DIR.mkdir(exist_ok=True)
-def _date_dir(base):
-    d = base / date.today().isoformat()
-    d.mkdir(exist_ok=True)
-    return d
 
 # Receive directory: User's Downloads/AYA Share
 RECV_DIR = Path(os.path.expanduser("~/Downloads")) / "AYA Share"
 RECV_DIR.mkdir(parents=True, exist_ok=True)
 
-# Send directory: User's Downloads/AYA Share (sent from PC)
-SENT_DIR = Path(os.path.expanduser("~/Downloads")) / "AYA Share"
-SENT_DIR.mkdir(parents=True, exist_ok=True)
+# Use the same Downloads folder as the main storage
+STORAGE_DIR = RECV_DIR
+
+def _date_dir(base):
+    d = base / date.today().isoformat()
+    d.mkdir(exist_ok=True)
+    return d
+
+SENT_DIR = RECV_DIR
 
 TOKEN = None
 LAN_IP = None
@@ -330,7 +339,7 @@ def api_qr():
 @app.route("/")
 @require_token
 def index():
-    return render_template("index.html", lan_ip=LAN_IP, port=PORT, today=date.today().isoformat())
+    return render_template("index.html", lan_ip=LAN_IP, port=PORT, today=date.today().isoformat(), token=TOKEN)
 
 
 # ── Windows API 직접 호출을 통한 시스템 알림 표시 ──
@@ -379,8 +388,13 @@ def show_native_notification(title, message):
         nid.szInfo = message[:255]
         nid.szTip = "AYA Share"
         
-        # 시스템 정보 기본 아이콘 로드 (IDI_INFORMATION = 32516)
-        nid.hIcon = ctypes.windll.user32.LoadIconW(0, 32516)
+        # 아이콘 로드: ayashare.ico가 있으면 사용, 없으면 시스템 기본 아이콘(IDI_INFORMATION=32516) 사용
+        icon_path = resource_path("ayashare.ico")
+        if os.path.exists(icon_path):
+            # 1: IMAGE_ICON, 0x10: LR_LOADFROMFILE, 0x80: LR_SHARED
+            nid.hIcon = ctypes.windll.user32.LoadImageW(None, icon_path, 1, 0, 0, 0x10 | 0x80)
+        else:
+            nid.hIcon = ctypes.windll.user32.LoadIconW(0, 32516)
 
         # 알림 요청 전송
         ctypes.windll.shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(nid))
@@ -566,46 +580,67 @@ def upload_cancel():
 @app.route("/files")
 @require_token
 def list_files():
-    # Canonicalize 'dir' - remove leading/trailing slashes and handle URL decoding
     import urllib.parse
     raw_sub = request.args.get("dir", "")
-    sub = urllib.parse.unquote(raw_sub).strip("/").replace("\\", "/")
+    # Normalize and Resolve '..' safely
+    sub_raw = urllib.parse.unquote(raw_sub).replace("\\", "/").strip("/")
+    parts = []
+    for p in sub_raw.split("/"):
+        if p == "..":
+            if parts: parts.pop()
+        elif p and p != ".":
+            parts.append(p)
+    sub = "/".join(parts)
     
     items = []
-    
-    # 1. Virtual Shared Registry (The "Shared Files" view)
-    # If the user is looking at 'to phone' or the root of sharing, give the registry
-    if sub == "to phone" or sub == "":
-        registry = _get_send_registry()
-        for rel_name, abs_path in registry.items():
-            try:
-                st = Path(abs_path).stat()
-                items.append({
-                    "name": rel_name.replace("\\", "/"), 
-                    "type": "file", 
-                    "size": st.st_size, 
-                    "mtime": st.st_mtime
-                })
-            except Exception as e:
-                print(f"Registry stat error: {e}")
+
+    # 1. Received Files (Physical) - Virtual path "received"
+    if sub == "received" or sub.startswith("received/"):
+        v_prefix = ""
+        if sub.startswith("received/"):
+            v_prefix = sub[len("received/"):].strip("/")
+            
+        base = STORAGE_DIR
+        if v_prefix:
+            base = base / v_prefix
+            try: base.relative_to(STORAGE_DIR)
+            except: base = STORAGE_DIR
+
+        if base.exists() and base.is_dir():
+            for p in sorted(base.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
+                if p.name.startswith("_"): continue
+                if p.is_dir():
+                    items.append({"name": p.name, "type": "dir", "mtime": p.stat().st_mtime})
+                else:
+                    items.append({"name": p.name, "type": "file", "size": p.stat().st_size, "mtime": p.stat().st_mtime})
         return jsonify({"dir": sub, "items": items})
 
-    # 2. Physical Storage (Received files browsing)
-    base = STORAGE_DIR
-    if sub:
-        # Security: Prevent traversing out of STORAGE_DIR
-        if ".." in sub:
-            return jsonify({"dir": sub, "items": []})
-        base = base / sub
-    
-    if base.exists() and base.is_dir():
-        for p in sorted(base.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())):
-            if p.name.startswith("_"): continue
-            if p.is_dir():
-                items.append({"name": p.name, "type": "dir", "mtime": p.stat().st_mtime})
+    # 2. Virtual Registry Mapping (Shared Files as ROOT)
+    registry = _get_send_registry()
+    v_prefix = sub + "/" if sub else ""
+
+    visited_dirs = set()
+    for rel_name, abs_path in registry.items():
+        norm_rel = rel_name.replace("\\", "/").strip("/")
+        
+        if norm_rel.startswith(v_prefix):
+            suffix = norm_rel[len(v_prefix):]
+            if not suffix: continue
+            
+            p_parts = suffix.split("/")
+            name = p_parts[0]
+            if len(p_parts) > 1:
+                if name not in visited_dirs:
+                    items.append({"name": name, "type": "dir"})
+                    visited_dirs.add(name)
             else:
-                items.append({"name": p.name, "type": "file", "size": p.stat().st_size, "mtime": p.stat().st_mtime})
+                try:
+                    p_obj = Path(abs_path)
+                    if p_obj.exists():
+                        items.append({"name": name, "type": "file", "size": p_obj.stat().st_size, "mtime": p_obj.stat().st_mtime})
+                except: pass
     
+    items.sort(key=lambda x: (x["type"] != "dir", x["name"].lower()))
     return jsonify({"dir": sub, "items": items})
 
 
@@ -617,30 +652,23 @@ def download(filename):
     import urllib.parse
     filename = urllib.parse.unquote(filename).replace("\\", "/")
     
-    # Check registry first (for "to phone" virtual files)
-    if filename.startswith("to phone/"):
-        rel = filename[len("to phone/"):]
-        registry = _get_send_registry()
-        
-        # Try finding absolute path using normalized keys
-        abs_path_str = registry.get(rel) or registry.get(rel.replace("/", "\\"))
-        if not abs_path_str:
-            # Last ditch attempt: check for case-insensitive or partial matches
-            rel_lower = rel.lower()
-            for k, v in registry.items():
-                if k.lower() == rel_lower:
-                    abs_path_str = v
-                    break
-                    
-        if abs_path_str:
-            abs_path = Path(abs_path_str)
-            if abs_path.exists() and abs_path.is_file():
-                mt, _ = mimetypes.guess_type(str(abs_path))
-                return send_file(str(abs_path), mimetype=mt, as_attachment=True, download_name=abs_path.name)
+    # Check registry first (for virtual files)
+    registry = _get_send_registry()
+    abs_path_str = None
+    for k, v in registry.items():
+        if k.replace("\\", "/").strip("/") == filename.strip("/"):
+            abs_path_str = v
+            break
+            
+    if abs_path_str:
+        abs_path = Path(abs_path_str)
+        if abs_path.exists() and abs_path.is_file():
+            return send_file(str(abs_path), as_attachment=True, download_name=abs_path.name)
     
-    # Fallback to physical storage (Only for received files in AYA share)
-    if not filename.startswith("to phone/"):
-        full_path = STORAGE_DIR / filename
+    # Fallback to physical storage (received files)
+    if filename.startswith("received/"):
+        rel = filename[len("received/"):].strip("/")
+        full_path = STORAGE_DIR / rel
         if full_path.exists() and full_path.is_file():
             mt, _ = mimetypes.guess_type(str(full_path))
             return send_file(str(full_path), mimetype=mt, as_attachment=True)
@@ -653,20 +681,39 @@ def download(filename):
 def download_dir():
     import zipfile
     sub = request.args.get("dir", "")
-    base = STORAGE_DIR
-    if sub:
-        base = base / sub
-    if not base.exists() or not base.is_dir():
-        abort(404)
+    
     buf = BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for root, dirs, files in os.walk(str(base)):
-            for fn in files:
-                fp = os.path.join(root, fn)
-                arcname = os.path.relpath(fp, str(base.parent))
-                zf.write(fp, arcname)
-    buf.seek(0)
     zipname = (sub or "AYA share").replace("/", "_").replace("\\", "_") + ".zip"
+
+    # 1. Physical Storage (Received Files)
+    if sub == "received" or sub.startswith("received/"):
+        v_prefix = sub[len("received"):].strip("/")
+        base = STORAGE_DIR 
+        if v_prefix: base = base / v_prefix
+        if not base.exists() or not base.is_dir(): abort(404)
+        
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(str(base)):
+                for fn in files:
+                    fp = os.path.join(root, fn)
+                    arcname = os.path.relpath(fp, str(base.parent))
+                    zf.write(fp, arcname)
+    
+    # 2. Virtual Registry Mapping (Shared Folders)
+    else:
+        registry = _get_send_registry()
+        v_prefix = sub.strip("/")
+        if v_prefix: v_prefix += "/"
+        
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for rel_name, abs_path in registry.items():
+                rel_name_norm = rel_name.replace("\\", "/").strip("/")
+                if rel_name_norm.startswith(v_prefix):
+                    arcname = rel_name_norm[len(v_prefix):]
+                    if os.path.exists(abs_path):
+                        zf.write(abs_path, arcname)
+    
+    buf.seek(0)
     resp = send_file(buf, mimetype="application/zip", as_attachment=True, download_name=zipname)
     resp.headers["Content-Length"] = str(buf.getbuffer().nbytes)
     return resp
@@ -745,15 +792,33 @@ def events():
 
 # ── GUI App ────────────────────────────────────────────────────
 ctk.set_appearance_mode("dark")
+# Material You inspired blue theme
 ctk.set_default_color_theme("blue")
+
+# Modern Android-inspired colors
+C_BG = "#0F1115"
+C_SURFACE = "#1C1F26"
+C_PRIMARY = "#8AB4F8"
+C_SECONDARY = "#3C4043"
+C_TEXT = "#E8EAED"
+C_ACCENT = "#D2E3FC"
 
 
 class MainApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("AYA Share")
-        self.geometry("620x610")
-        self.minsize(520, 520)
+        self.geometry("640x720")
+        self.minsize(560, 600)
+        self.configure(fg_color=C_BG)
+        
+        # 앱 아이콘 설정
+        try:
+            icon_p = resource_path("ayashare.ico")
+            if os.path.exists(icon_p):
+                self.iconbitmap(icon_p)
+        except Exception:
+            pass
 
         # Tkinter 내부 시스템 윈도우 핸들을 전역 홀더에 등록
         self.update() # 창의 윈도우 핸들이 활성화되도록 유도
@@ -763,30 +828,77 @@ class MainApp(ctk.CTk):
         self.transferring = False
         self._url_visible = False
 
+        # ── 점진적 초기화 (렉 방지) ──
+        # 1. 먼저 빈 UI 틀을 잡습니다.
         self._build_ui()
-        self._start_server()
-        self._show_server_info()
-        self._poll_ips()
+        
+        # 2. 약간의 시차를 두고 무거운 작업들을 순차 실행합니다.
+        self.after(100, self._start_server)    # 서버 엔진 시작
+        self.after(400, self._show_server_info) # QR 및 서버 정보 출력
+        self.after(800, self._poll_ips)         # 주변 기기 폴링 시작
 
     def _toggle_panel(self, open_=None):
         if open_ is None:
             open_ = not self._panel_open
         if open_ == self._panel_open:
             return
-        sw = self._panel_width
-        sx = -sw if not open_ else 0
-        ex = 0 if open_ else -sw
+        
         self._panel_open = open_
+        sw = self._panel_width
+        sx = -sw if open_ else 0
+        ex = 0 if open_ else -sw
+
+        # Dim the UI elements
+        self._dim_ui(open_)
 
         def on_end():
             if open_:
-                self.slide_panel.lift()
                 self.slide_panel.focus()
-                self._build_panel_content()  # refresh dynamic info
-                self.bind("<Button-1>", self._close_panel_click, add="+")
+                self._build_panel_content()
+                # Global click bind to close when clicking outside
+                self._click_bind_id = self.bind_all("<Button-1>", self._outside_click_handler)
             else:
-                self.unbind("<Button-1>")
-        self._slide_animate(self.slide_panel, sx, ex, steps=24, interval=10, cb=on_end)
+                if hasattr(self, "_click_bind_id"):
+                    self.unbind_all("<Button-1>")
+        
+        self._slide_animate(self.slide_panel, sx, ex, steps=18, interval=10, cb=on_end)
+
+    def _outside_click_handler(self, event):
+        """ Closes panel if click is outside sidebar or its menu button """
+        if not self._panel_open:
+            return
+        w = event.widget
+        # If click is not inside the panel and not on the menu button itself
+        if not self._is_child_of(w, self.slide_panel) and w != self.menu_btn:
+            # We use after to avoid event conflict
+            self.after(10, lambda: self._toggle_panel(False))
+
+    def _dim_ui(self, active):
+        """ Simulates semi-transparency by darkening main colors """
+        target_bg = "#08090B" if active else C_BG
+        target_surface = "#111317" if active else C_SURFACE
+        target_primary = "#455A7E" if active else C_PRIMARY
+        
+        # Animate background
+        self._animate_to(self, "fg_color", self.cget("fg_color"), target_bg, steps=10)
+        
+        # Animate main content area children (Cards)
+        # Note: We iterate over children of main_container's internal canvas frame
+        try:
+            # conn_card, drop_card, etc are stored as attributes
+            self._animate_to(self.main_container, "fg_color", "transparent", "transparent", steps=10) # dummy for timing
+            
+            # Connection Card
+            for widget in self.main_container.winfo_children():
+                if isinstance(widget, ctk.CTkFrame):
+                    # Check which card it is by current color
+                    curr = widget.cget("fg_color")
+                    if curr == C_PRIMARY or curr == "#455A7E":
+                        self._animate_to(widget, "fg_color", curr, target_primary, steps=10)
+                    else:
+                        self._animate_to(widget, "fg_color", curr, target_surface, steps=10)
+        except:
+            pass
 
     def _close_panel_click(self, e):
         if e.widget != self.slide_panel and not self._is_child_of(e.widget, self.slide_panel) and e.widget != self.menu_btn:
@@ -840,143 +952,172 @@ class MainApp(ctk.CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(1, weight=1)
 
-        # ── Top row: hamburger + server info (left), QR (right) ──
-        top = ctk.CTkFrame(self, fg_color="transparent")
-        top.grid(row=0, column=0, pady=(8, 0), sticky="ew")
-        top.grid_columnconfigure(1, weight=1)
+        # ── Header Section ──
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        header_frame.grid_columnconfigure(1, weight=1)
 
-        self.menu_btn = ctk.CTkButton(top, text="☰", width=28, height=24, fg_color="transparent",
-                                        hover_color="#333", command=self._toggle_panel,
-                                        font=ctk.CTkFont(size=13))
-        self.menu_btn.grid(row=0, column=0, padx=(8, 4), pady=0, sticky="nw")
+        self.menu_btn = ctk.CTkButton(header_frame, text="☰", width=40, height=40, 
+                                        fg_color=C_SURFACE, text_color=C_TEXT,
+                                        hover_color=C_SECONDARY, corner_radius=12,
+                                        font=ctk.CTkFont(size=20), command=self._toggle_panel)
+        self.menu_btn.grid(row=0, column=0, sticky="w")
 
-        info_left = ctk.CTkFrame(top, fg_color="transparent")
-        info_left.grid(row=0, column=1, sticky="nsew")
-        info_left.grid_columnconfigure(0, weight=1)
+        title_label = ctk.CTkLabel(header_frame, text="AYA Share", 
+                                    font=ctk.CTkFont(size=22, weight="bold"),
+                                    text_color=C_TEXT)
+        title_label.grid(row=0, column=1, padx=20, sticky="w")
 
-        self.status_label = ctk.CTkLabel(info_left, text="Server: starting...", anchor="w",
-                                          font=ctk.CTkFont(size=11))
-        self.status_label.grid(row=0, column=0, padx=(0, 4), pady=(2, 0), sticky="w")
+        self.reg_btn = ctk.CTkButton(header_frame, text="⟳", width=40, height=40, 
+                                       fg_color="transparent", text_color=C_TEXT,
+                                       hover_color=C_SECONDARY, corner_radius=12,
+                                       font=ctk.CTkFont(size=18), command=self._regenerate_token)
+        self.reg_btn.grid(row=0, column=2, sticky="e")
 
-        self.ips_box = ctk.CTkTextbox(info_left, height=18, state="disabled", wrap="none",
-                                       font=ctk.CTkFont(size=9), fg_color="transparent",
-                                       text_color="#aaa")
-        self.ips_box.grid(row=1, column=0, padx=(0, 4), pady=(0, 2), sticky="ew")
+        # ── Main Content Area ──
+        self.main_container = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.main_container.grid(row=1, column=0, padx=10, pady=0, sticky="nsew")
+        self.main_container.grid_columnconfigure(0, weight=1)
 
-        self.qr_label = ctk.CTkLabel(top, text="", width=100, height=100, cursor="hand2")
-        self.qr_label.grid(row=0, column=2, padx=(0, 4), pady=2, sticky="ne")
+        # 1. Connection Card
+        conn_card = ctk.CTkFrame(self.main_container, fg_color=C_SURFACE, corner_radius=24)
+        conn_card.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        conn_card.grid_columnconfigure(0, weight=1)
+
+        info_inner = ctk.CTkFrame(conn_card, fg_color="transparent")
+        info_inner.grid(row=0, column=0, padx=20, pady=20, sticky="nsew")
+        info_inner.grid_columnconfigure(0, weight=1)
+
+        self.status_badge = ctk.CTkLabel(info_inner, text="SERVER STARTING", 
+                                          fg_color="#333", text_color="#AAA",
+                                          font=ctk.CTkFont(size=10, weight="bold"),
+                                          corner_radius=10, height=20, width=120)
+        self.status_badge.grid(row=0, column=0, sticky="w", pady=(0, 10))
+
+        self.status_label = ctk.CTkLabel(info_inner, text="Initializing...", 
+                                          font=ctk.CTkFont(size=16, weight="bold"),
+                                          text_color=C_TEXT, anchor="w")
+        self.status_label.grid(row=1, column=0, sticky="w")
+
+        self.ips_box = ctk.CTkTextbox(info_inner, height=40, state="disabled", wrap="none",
+                                       font=ctk.CTkFont(size=11), fg_color="transparent",
+                                       text_color="#888")
+        self.ips_box.grid(row=2, column=0, pady=(5, 0), sticky="ew")
+
+        # QR on the right of the card
+        self.qr_label = ctk.CTkLabel(conn_card, text="", width=100, height=100, cursor="hand2")
+        self.qr_label.grid(row=0, column=1, padx=20, pady=20, sticky="e")
         self.qr_label.bind("<Button-1>", lambda e: self._show_qr_large())
 
-        self.reg_btn = ctk.CTkButton(top, text="⟳", width=28, height=24, fg_color="transparent",
-                                       hover_color="#333", command=self._regenerate_token,
-                                       font=ctk.CTkFont(size=16))
-        self.reg_btn.grid(row=0, column=3, padx=(0, 10), pady=0, sticky="ne")
-
-        # ── Drop zone (CTkButton for reliable click) ──
-        _plus_img = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
-        _d = ImageDraw.Draw(_plus_img)
-        _d.rectangle((12, 2, 20, 30), fill="#555")
-        _d.rectangle((2, 12, 30, 20), fill="#555")
-        _plus_ctk = ctk.CTkImage(_plus_img, size=(32, 32))
+        # 2. Upload/Drop Zone Card
+        self.drop_card = ctk.CTkFrame(self.main_container, fg_color="transparent")
+        self.drop_card.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+        self.drop_card.grid_columnconfigure(0, weight=1)
 
         self.drop_btn = ctk.CTkButton(
-            self, text="drag & drop", image=_plus_ctk, compound="top",
-            fg_color="#1e1e1e", hover_color="#2a2a2a",
-            corner_radius=8, command=self._show_drop_menu,
-            height=120, font=ctk.CTkFont(size=13),
-            border_width=2, border_color="#1e1e1e")
-        self.drop_btn.grid(row=1, column=0, padx=24, pady=12, sticky="nsew")
+            self.drop_card, text="공유할 파일이나 폴더를\n여기로 끌어오세요", 
+            fg_color=C_PRIMARY, text_color="#000",
+            hover_color=C_ACCENT, corner_radius=24, height=140,
+            font=ctk.CTkFont(size=15, weight="bold"),
+            command=self._show_drop_menu)
+        self.drop_btn.grid(row=0, column=0, sticky="nsew")
 
-        # ── Slide panel (storage) — created LAST for topmost z-order ──
-        self._panel_width = 200
+        # 3. Sharing List Card (Dynamic)
+        self.send_frame = ctk.CTkFrame(self.main_container, fg_color=C_SURFACE, corner_radius=24)
+        self.send_frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
+        self.send_frame.grid_columnconfigure(0, weight=1)
+
+        list_header = ctk.CTkFrame(self.send_frame, fg_color="transparent")
+        list_header.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
+        
+        ctk.CTkLabel(list_header, text="현재 공유 중",
+                      font=ctk.CTkFont(size=14, weight="bold"),
+                      text_color=C_ACCENT).pack(side="left")
+        
+        self.file_count = ctk.CTkLabel(list_header, text="0 items",
+                                        font=ctk.CTkFont(size=11), text_color="#666")
+        self.file_count.pack(side="left", padx=10)
+
+        self.clear_btn = ctk.CTkButton(list_header, text="모두 취소", fg_color="#3D1A1A", 
+                                        text_color="#FF8A8A", hover_color="#552222",
+                                        command=self._clear_files, width=70, height=28,
+                                        corner_radius=8, font=ctk.CTkFont(size=11))
+        self.clear_btn.pack(side="right")
+
+        self.add_btn = ctk.CTkButton(list_header, text="추가", fg_color=C_SECONDARY, 
+                                      text_color=C_TEXT, hover_color="#444",
+                                      command=self._show_drop_menu, width=50, height=28,
+                                      corner_radius=8, font=ctk.CTkFont(size=11))
+        self.add_btn.pack(side="right", padx=6)
+
+        self.file_box = ctk.CTkTextbox(self.send_frame, height=100, state="disabled", wrap="none",
+                                        fg_color="#14171C", border_width=0,
+                                        font=ctk.CTkFont(size=12))
+        self.file_box.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="ew")
+
+        # ── Slide panel (storage) ──
+        self._panel_width = 240
         self._panel_open = False
         self.slide_panel = ctk.CTkFrame(self, width=self._panel_width,
-                                         fg_color="#181818", corner_radius=0)
+                                         fg_color=C_SURFACE, corner_radius=0)
         self.slide_panel.place(x=-self._panel_width, y=0, relheight=1)
-        self.slide_panel.lift()
-
-        # Scrollable content
-        self.panel_scroll = ctk.CTkScrollableFrame(self.slide_panel, fg_color="transparent",
-                                                    scrollbar_button_color="#333",
-                                                    scrollbar_button_hover_color="#444")
+        
+        # Scrollable panel content
+        self.panel_scroll = ctk.CTkScrollableFrame(self.slide_panel, fg_color="transparent")
         self.panel_scroll.place(relx=0, rely=0, relwidth=1, relheight=1)
         self.panel_scroll.grid_columnconfigure(0, weight=1)
 
-        # Category data: (name, [(label, command, color), ...])
-        # Info category uses dynamic getter
         self._panel_categories = [
             ("📁  Storage", [
-                ("받은파일", lambda: os.startfile(str(RECV_DIR)), "#1e1e1e"),
+                ("받은 파일 폴더 열기", lambda: os.startfile(str(RECV_DIR)), C_SECONDARY),
             ]),
-            ("⚙️  Actions", [
-                ("Regenerate Token", self._regenerate_token, "#1e1e1e"),
-                ("Restart Server", self._restart_server, "#1e1e1e"),
-                ("Cache Clear", self._confirm_clear, "#555"),
+            ("⚙️  System", [
+                ("토큰 재생성", self._regenerate_token, C_SECONDARY),
+                ("서버 재시작", self._restart_server, C_SECONDARY),
+                ("전송 기록 삭제", self._confirm_clear, "#2D2626"),
             ]),
-            ("ℹ️  Info", [
+            ("ℹ️  Status", [
                 (lambda: f"IP: {LAN_IP}", None, "transparent"),
-                (lambda: f"Port: {PORT}", None, "transparent"),
+                (lambda: f"포트: {PORT}", None, "transparent"),
+            ]),
+            ("🔗  Links", [
+                ("GitHub 바로가기", lambda: webbrowser.open("https://github.com/GNBD/AYA-Share"), C_SECONDARY),
             ]),
         ]
         self._build_panel_content()
 
-        # ── Send controls (file list, progress, items) ──
-        self.send_frame = ctk.CTkFrame(self)
-        self.send_frame.grid(row=2, column=0, padx=12, pady=4, sticky="ew")
-        self.send_frame.grid_columnconfigure(0, weight=1)
-        self.send_frame.grid_remove()
+        # 4. Activity & Progress Card
+        self.activity_card = ctk.CTkFrame(self.main_container, fg_color=C_SURFACE, corner_radius=24)
+        self.activity_card.grid(row=3, column=0, padx=10, pady=10, sticky="ew")
+        self.activity_card.grid_columnconfigure(0, weight=1)
 
-        btn_row = ctk.CTkFrame(self.send_frame, fg_color="transparent")
-        btn_row.grid(row=0, column=0, padx=8, pady=(8, 4), sticky="ew")
-
-        ctk.CTkLabel(btn_row, text="공유 중인 파일",
-                      font=ctk.CTkFont(size=13, weight="bold")).pack(side="left")
-        ctk.CTkButton(btn_row, text="추가", fg_color="#2563eb", width=60,
-                       command=self._show_drop_menu).pack(side="left", padx=(14, 4))
-        self.clear_btn = ctk.CTkButton(btn_row, text="공유 전체취소", fg_color="#dc2626",
-                                        command=self._clear_files, width=80)
-        self.clear_btn.pack(side="right")
-        self.file_count = ctk.CTkLabel(btn_row, text="No files", text_color="gray")
-        self.file_count.pack(side="right", padx=(0, 10))
-
-        self.file_box = ctk.CTkTextbox(self.send_frame, height=84, state="disabled", wrap="none",
-                                        fg_color="#1a1a1a", border_width=1, border_color="#333")
-        self.file_box.grid(row=1, column=0, padx=8, pady=(0, 8), sticky="ew")
-
-        self.progress = ctk.CTkProgressBar(self.send_frame)
-        self.progress.grid(row=2, column=0, padx=8, pady=(0, 8), sticky="ew")
+        self.progress = ctk.CTkProgressBar(self.activity_card, height=4, fg_color="#14171C", 
+                                            progress_color=C_PRIMARY)
+        self.progress.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
         self.progress.set(0)
 
-        # ── Activity log ──
-        log_frame = ctk.CTkFrame(self)
-        log_frame.grid(row=3, column=0, padx=12, pady=(4, 10), sticky="ew")
-        log_frame.grid_columnconfigure(0, weight=1)
-        log_frame.grid_remove()
+        self.log_box = ctk.CTkTextbox(self.activity_card, height=60, state="disabled", 
+                                       wrap="word", fg_color="transparent", 
+                                       text_color="#888", font=ctk.CTkFont(size=11))
+        self.log_box.grid(row=1, column=0, padx=15, pady=(0, 15), sticky="ew")
 
-        ctk.CTkLabel(log_frame, text="Activity",
-                      font=ctk.CTkFont(size=11, weight="bold")).grid(
-            row=0, column=0, padx=8, pady=(4, 2), sticky="w")
 
-        self.log_box = ctk.CTkTextbox(log_frame, height=36, state="disabled", wrap="word")
-        self.log_box.grid(row=1, column=0, padx=8, pady=(0, 4), sticky="ew")
-
-        # ── Status bar ──
-        self.status_bar = ctk.CTkLabel(self, text="", anchor="w",
-                                        font=ctk.CTkFont(size=11))
-        self.status_bar.grid(row=4, column=0, padx=14, pady=(0, 6), sticky="ew")
-
-        # ── Drag & drop ──
+        # Hook DnD
         windnd.hook_dropfiles(self, self._on_files_dropped)
         self.drop_btn.bind("<Enter>", lambda e: self._on_drop_enter(True), add="+")
         self.drop_btn.bind("<Leave>", lambda e: self._on_drop_enter(False), add="+")
 
+        # Initial Intro Animation
+        self.after(100, lambda: self._fade_slide_up(conn_card))
+        self.after(250, lambda: self._fade_slide_up(self.drop_card))
+        self.after(400, lambda: self._fade_slide_up(self.activity_card))
+
     def _on_drop_enter(self, active):
         if active:
-            self._animate_to(self.drop_btn, "fg_color", "#1e1e1e", "#333", steps=6)
-            self._animate_to(self.drop_btn, "border_color", "#1e1e1e", "#888", steps=6)
+            # Subtle feedback on hover
+            self.drop_btn.configure(fg_color=C_ACCENT)
         else:
-            self._animate_to(self.drop_btn, "fg_color", "#333", "#1e1e1e", steps=6)
-            self._animate_to(self.drop_btn, "border_color", "#888", "#1e1e1e", steps=6)
+            self.drop_btn.configure(fg_color=C_PRIMARY)
 
     def _interpolate_color(self, c1, c2, t):
         def norm(c):
@@ -997,13 +1138,40 @@ class MainApp(ctk.CTk):
             if not widget.winfo_exists():
                 return
             if i > steps:
-                widget.configure(**{prop: to_c})
+                try: widget.configure(**{prop: to_c})
+                except: pass
                 if cb: cb()
                 return
             t = i / steps
             color = self._interpolate_color(from_c, to_c, t)
-            widget.configure(**{prop: color})
+            try: widget.configure(**{prop: color})
+            except: pass
             self.after(interval, lambda: anim(i + 1))
+        anim(1)
+
+    def _fade_slide_up(self, widget, start_pady=20, steps=15):
+        """ Cards smoothly fade and slide up into position """
+        widget.update_idletasks()
+        target_color = widget.cget("fg_color") if hasattr(widget, "fg_color") else C_SURFACE
+        
+        # Start state
+        widget.configure(fg_color=C_BG) # Start with background color (invisible)
+        
+        def anim(i):
+            if not widget.winfo_exists(): return
+            if i > steps:
+                widget.configure(fg_color=target_color)
+                return
+            t = i / steps
+            eased = t * (2 - t) # ease out
+            
+            # Color fade
+            color = self._interpolate_color(C_BG, target_color, eased)
+            widget.configure(fg_color=color)
+            
+            # Position offset is harder in grid, so we just animate color/alpha feel
+            self.after(10, lambda: anim(i + 1))
+            
         anim(1)
 
     def _show_overlay(self, build_content, destroy_on_click=True, from_color="#333"):
@@ -1130,9 +1298,9 @@ class MainApp(ctk.CTk):
         self.qr_label.configure(image=ctk_img)
         self.qr_label.image = ctk_img
 
-        self.status_label.configure(text=f"Server: Running  ({LAN_IP}:{PORT})", text_color="#22c55e")
+        self.status_badge.configure(text="● RUNNING", fg_color="#1E3A2A", text_color="#4ADE80")
+        self.status_label.configure(text="서버가 활성화되었습니다")
         self._log(f"Server started on {LAN_IP}:{PORT}")
-        self.status_bar.configure(text=f"Ready on {LAN_IP}:{PORT}")
 
     def _regenerate_token(self):
         global TOKEN
@@ -1232,7 +1400,7 @@ class MainApp(ctk.CTk):
                 try:
                     st = Path(abs_path).stat()
                     # Capture the direct link
-                    link = f"/download/{urllib.parse.quote('to phone/' + clean_rel)}?token={TOKEN}"
+                    link = f"/download/{urllib.parse.quote(clean_rel)}?token={TOKEN}"
                     shared_list.append({
                         "name": clean_rel,
                         "url": link,
@@ -1300,7 +1468,10 @@ class MainApp(ctk.CTk):
                     sz = f"{s}B" if s < 1024 else f"{s/1024:.1f}KB" if s < 1048576 else f"{s/1048576:.1f}MB"
                     self.file_box.insert("end", f"📄  {p.name}  ({sz})\n")
             self.file_count.configure(text=f"{len(self.selected_files)} item(s)")
-            self.send_frame.grid()
+            
+            if not self.send_frame.winfo_viewable():
+                self.send_frame.grid()
+                self._fade_slide_up(self.send_frame, steps=10)
         else:
             self.file_count.configure(text="No files")
             self.send_frame.grid_remove()

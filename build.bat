@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --icon=ayashare.ico --add-data "ayashare.ico;." --add-data "templates;templates" --name "AYA Share" main.py
