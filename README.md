@@ -1,4 +1,4 @@
-# AYA Share
+#<img width="459" height="460" alt="ayashare -" src="https://github.com/user-attachments/assets/ffaabe65-f676-4b9a-bc84-b6fdd254a534" />AYA Share
 
 
 별도의 복잡한 설정 없이, 동일한 네트워크 환경이라면 파일을 주고받을 수 있습니다.
