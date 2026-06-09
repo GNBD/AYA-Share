@@ -1,7 +1,6 @@
 flask
-customtkinter
+pywebview
 qrcode[pil]
 Pillow
 requests
-windnd
 waitress
