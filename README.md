@@ -6,7 +6,8 @@
 모바일은 클라이언트가 필요없습니다.
 
 
-<img width="699" height="820" alt="image" src="https://github.com/user-attachments/assets/29ed91a5-3b1b-48e1-a24a-cb8b31b56a23" />
+<img width="661" height="750" alt="image" src="https://github.com/user-attachments/assets/76b11700-a187-465e-ac0d-350391fb76a2" />
+
 
 
 
@@ -22,20 +23,19 @@
 ## 🛠 기술 스택 (Tech Stack)
 
 ### **Backend & Core**
-* **Python 3.x**: 프로젝트의 메인 로직 처리.
-* **Flask**: 가볍고 확장성이 뛰어난 웹 서버 프레임워크.
-* **Requests & Urllib3**: HTTP 통신 및 파일 전송 로직 관리.
-* **Socket & Pathlib**: 로컬 네트워크 인터페이스 제어 및 파일 경로 최적화.
+* **Python 3**
+* **Flask**
+* **Requests & Urllib3**
+* **Socket & Pathlib**
 
 ### **Frontend & UI**
-* **HTML5 / CSS3 / Vanilla JavaScript**: 외부 의존성 없는 가볍고 빠른 웹 인터페이스 구현.
-* **CustomTkinter**: 현대적인 디자인의 고성능 데스크톱 GUI 환경 제공.
-* **Windnd**: 윈도우 환경에서의 네이티브 드래그 앤 드롭 지원.
+* **HTML5 / CSS3 / Vanilla JavaScript**
+* **pywebview**
+* **Windnd**
 
 ### **Utilities & Tools**
-* **Pillow (PIL)**: 이미지 처리 및 QR 코드 생성을 위한 그래픽 라이브러리.
-* **PyInstaller**: 프로젝트의 독립 실행형(Standalone .exe) 빌드 지원.
-* **qrcode**: 무선 연결을 위한 모바일 스캔용 QR 코드 생성.
+* **Pillow (PIL)**
+* **qrcode**
 
 ## ⚠️ 주의 사항 (Known Issues)
 * **고용량 파일:** 현재 대용량 파일 전송이 불안정할 수 있습니다.
