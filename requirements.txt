@@ -4,3 +4,4 @@ qrcode[pil]
 Pillow
 requests
 waitress
+windnd
