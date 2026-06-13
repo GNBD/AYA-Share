@@ -139,20 +139,16 @@ app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024 * 1024
 
 BASE_DIR = Path(__file__).parent.resolve()
 
-# Receive directory: User's Downloads/AYA Share
-RECV_DIR = Path(os.path.expanduser("~/Downloads")) / "AYA Share"
-RECV_DIR.mkdir(parents=True, exist_ok=True)
-
-# Use the same Downloads folder as the main storage
+# Receive directory (placeholder — overwritten in start() from config)
+RECV_DIR = Path.home() / "Downloads" / "AYA Share"
 STORAGE_DIR = RECV_DIR
 SHARED_DIR = RECV_DIR / "_shared"
+SENT_DIR = RECV_DIR
 
 def _date_dir(base):
     d = base / date.today().isoformat()
     d.mkdir(exist_ok=True)
     return d
-
-SENT_DIR = RECV_DIR
 
 TOKEN = None
 LAN_IP = None
@@ -171,7 +167,7 @@ def _load_config():
             return json.loads(_CONFIG_PATH.read_text(encoding="utf-8"))
     except Exception:
         pass
-    return {"language": "ko"}
+    return {"language": "ko", "notifications": True}
 
 def _save_config(cfg):
     try:
@@ -179,6 +175,23 @@ def _save_config(cfg):
         _CONFIG_PATH.write_text(json.dumps(cfg, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         pass
+
+def _apply_recv_dir(path_str=None):
+    """Set receive directory from config or given path. Updates related globals."""
+    global RECV_DIR, STORAGE_DIR, SHARED_DIR, SENT_DIR
+    if path_str is None:
+        cfg = _load_config()
+        path_str = cfg.get("recv_dir", str(Path.home() / "Downloads" / "AYA Share"))
+    new_path = Path(path_str)
+    new_path.mkdir(parents=True, exist_ok=True)
+    RECV_DIR = new_path
+    STORAGE_DIR = RECV_DIR
+    SHARED_DIR = RECV_DIR / "_shared"
+    SENT_DIR = RECV_DIR
+    # persist
+    cfg = _load_config()
+    cfg["recv_dir"] = str(RECV_DIR)
+    _save_config(cfg)
 
 def _load_locale(code):
     if code in _LANG_CACHE:
@@ -216,6 +229,12 @@ _version_lock = threading.Lock()
 _device_map = {}
 _device_lock = threading.Lock()
 _hwnd_holder = {"hwnd": 0}  # Tkinter 메인 스레드 창 핸들을 보관할 전역 객체
+
+# ── Upload progress tracking for desktop modal ──
+_upload_progress = {}
+_upload_progress_lock = threading.Lock()
+_upload_version = 0
+_upload_version_lock = threading.Lock()
 
 
 def _resolve_hostname(ip):
@@ -345,6 +364,9 @@ def _get_toast_script_path():
     return path
 
 def show_native_notification(title, message):
+    cfg = _load_config()
+    if not cfg.get("notifications", True):
+        return
     try:
         import subprocess
         si = subprocess.STARTUPINFO()
@@ -362,6 +384,7 @@ def show_native_notification(title, message):
 @app.route("/upload", methods=["POST"])
 @require_token
 def upload():
+    global _upload_version
     if "file" not in request.files:
         return jsonify({"error": "no file"}), 400
     f = request.files["file"]
@@ -376,6 +399,21 @@ def upload():
     fp.parent.mkdir(parents=True, exist_ok=True)
     f.save(str(fp))
     _signal_update()
+    
+    # Register as completed upload for desktop modal (single file = quick)
+    direct_id = "direct_" + uuid.uuid4().hex
+    file_size = os.path.getsize(fp)
+    with _upload_progress_lock:
+        _upload_progress[direct_id] = {
+            'filename': f.filename,
+            'total_size': file_size,
+            'received': file_size,
+            'speed': 0,
+            'status': 'completed',
+            'completed_at': time.time(),
+        }
+        with _upload_version_lock:
+            _upload_version += 1
     
     # 일반 단일 파일 업로드 완료 시에도 윈도우 시스템 알림 비동기 전송
     threading.Thread(target=show_native_notification, args=(_t("notif_title"), _t("notif_file_received", filename=f.filename)), daemon=True).start()
@@ -436,6 +474,7 @@ def _cleanup_old_uploads(max_age=3600):
 @app.route("/api/upload/start", methods=["POST"])
 @require_token
 def upload_start():
+    global _upload_version
     _cleanup_old_uploads()
     data = request.get_json(silent=True) or {}
     filename = data.get("filename", "")
@@ -459,11 +498,25 @@ def upload_start():
             "received": 0,
             "created": time.time(),
         }
+    # Register upload progress for desktop modal
+    with _upload_progress_lock:
+        _upload_progress[upload_id] = {
+            'filename': filename,
+            'total_size': total_size,
+            'received': 0,
+            'speed': 0,
+            'status': 'uploading',
+            'last_bytes': 0,
+            'last_time': time.time(),
+        }
+        with _upload_version_lock:
+            _upload_version += 1
     return jsonify({"ok": True, "upload_id": upload_id})
 
 @app.route("/api/upload/chunk", methods=["POST"])
 @require_token
 def upload_chunk():
+    global _upload_version
     upload_id = request.form.get("upload_id", "")
     chunk_index = int(request.form.get("chunk_index", "0"))
     total_chunks = int(request.form.get("total_chunks", "1"))
@@ -484,6 +537,18 @@ def upload_chunk():
         chunk_size = len(chunk_data)
         with _upload_lock:
             sess["received"] += chunk_size
+        # Update upload progress for desktop modal
+        with _upload_progress_lock:
+            if upload_id in _upload_progress:
+                p = _upload_progress[upload_id]
+                now = time.time()
+                if now - p['last_time'] > 0.5:
+                    p['speed'] = (sess["received"] - p['last_bytes']) / (now - p['last_time']) if (now - p['last_time']) > 0 else 0
+                    p['last_bytes'] = sess["received"]
+                    p['last_time'] = now
+                p['received'] = sess["received"]
+                with _upload_version_lock:
+                    _upload_version += 1
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     return jsonify({"ok": True, "received": sess["received"]})
@@ -491,6 +556,7 @@ def upload_chunk():
 @app.route("/api/upload/finish", methods=["POST"])
 @require_token
 def upload_finish():
+    global _upload_version
     data = request.get_json(silent=True) or {}
     upload_id = data.get("upload_id", "")
     if not upload_id:
@@ -516,6 +582,14 @@ def upload_finish():
         return jsonify({"error": str(e)}), 500
     _signal_update()
     
+    # Mark upload as completed for desktop modal
+    with _upload_progress_lock:
+        if upload_id in _upload_progress:
+            _upload_progress[upload_id]['status'] = 'completed'
+            _upload_progress[upload_id]['completed_at'] = time.time()
+            with _upload_version_lock:
+                _upload_version += 1
+    
     # 대용량 청크 전송 완료 시 윈도우 시스템 알림 비동기 전송
     threading.Thread(target=show_native_notification, args=(_t("notif_title"), _t("notif_file_received", filename=sess["filename"])), daemon=True).start()
     return jsonify({"ok": True, "filename": str(Path(rel) / sess["filename"])})
@@ -535,6 +609,13 @@ def upload_cancel():
                 os.unlink(sess["temp_path"])
         except Exception:
             pass
+    # Notify desktop modal to close
+    with _upload_progress_lock:
+        if upload_id in _upload_progress:
+            _upload_progress[upload_id]['status'] = 'cancelled'
+            _upload_progress[upload_id]['completed_at'] = time.time()
+            with _upload_version_lock:
+                _upload_version += 1
     return jsonify({"ok": True})
 
 
@@ -732,11 +813,13 @@ def api_connected():
 @require_token
 def events():
     last = _file_version
+    last_up = 0
     import urllib.parse
     def generate():
-        nonlocal last
+        nonlocal last, last_up
         count = 0
         while True:
+            # File version check
             with _version_lock:
                 cur = _file_version
                 msg = _last_event_msg
@@ -744,12 +827,37 @@ def events():
             if cur != last:
                 last = cur
                 yield f"data: {json.dumps({'type': 'update', 'msg': msg, 'items': data})}\n\n"
-            else:
-                # Heartbeat every 20 seconds to prevent timeout
-                count += 1
-                if count >= 20:
-                    yield ": heartbeat\n\n"
-                    count = 0
+            
+            # Upload progress check
+            with _upload_progress_lock:
+                up_cur = _upload_version
+                snapshot = dict(_upload_progress)
+            if up_cur != last_up:
+                last_up = up_cur
+                uploads_info = []
+                for uid, info in snapshot.items():
+                    if info['status'] in ('uploading', 'completed'):
+                        uploads_info.append({
+                            'filename': info['filename'],
+                            'received': info['received'],
+                            'total_size': info['total_size'],
+                            'speed': info.get('speed', 0),
+                            'status': info['status'],
+                        })
+                yield f"data: {json.dumps({'type': 'upload_progress', 'uploads': uploads_info})}\n\n"
+            
+            # Heartbeat + cleanup completed uploads
+            count += 1
+            if count >= 20:
+                now = time.time()
+                with _upload_progress_lock:
+                    to_del = [k for k, v in _upload_progress.items()
+                              if v.get('status') in ('completed', 'cancelled')
+                              and now - v.get('completed_at', 0) > 10]
+                    for k in to_del:
+                        _upload_progress.pop(k, None)
+                yield ": heartbeat\n\n"
+                count = 0
             time.sleep(1)
     return Response(generate(), mimetype="text/event-stream")
 
@@ -765,7 +873,22 @@ def api_admin_status():
         "server_running": True,
         "recv_dir": str(RECV_DIR),
         "shared_count": len(_get_send_registry()),
+        "notifications_enabled": _load_config().get("notifications", True),
     })
+
+
+@app.route("/api/admin/notifications", methods=["GET", "POST"])
+@require_token
+def api_admin_notifications():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        enabled = data.get("enabled", True)
+        cfg = _load_config()
+        cfg["notifications"] = enabled
+        _save_config(cfg)
+        return jsonify({"ok": True, "enabled": enabled})
+    cfg = _load_config()
+    return jsonify({"enabled": cfg.get("notifications", True)})
 
 
 @app.route("/api/admin/regenerate", methods=["POST"])
@@ -948,6 +1071,20 @@ def api_admin_recv_open():
     return jsonify({"ok": True})
 
 
+@app.route("/api/admin/recv_dir", methods=["GET", "POST"])
+@require_token
+def api_admin_recv_dir():
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        path_str = data.get("path", "")
+        if not path_str:
+            return jsonify({"ok": False, "error": "path required"}), 400
+        _apply_recv_dir(path_str)
+        _signal_update()
+        return jsonify({"ok": True, "recv_dir": str(RECV_DIR)})
+    return jsonify({"recv_dir": str(RECV_DIR)})
+
+
 # ── Language API ──
 @app.route("/api/language", methods=["GET"])
 def api_language_get():
@@ -962,7 +1099,9 @@ def api_language_set():
     code = data.get("language", "ko")
     if code not in ("ko", "en"):
         return jsonify({"ok": False, "error": "unsupported language"}), 400
-    _save_config({"language": code})
+    cfg = _load_config()
+    cfg["language"] = code
+    _save_config(cfg)
     global LANGUAGE
     LANGUAGE = code
     _LANG_CACHE.pop(code, None)
@@ -978,6 +1117,7 @@ def admin_desktop():
 # ── Entry Point: Launch Flask + PyWebview ──────────────────────
 def start():
     global LAN_IP, TOKEN
+    _apply_recv_dir()  # load from config
     TOKEN = uuid.uuid4().hex + uuid.uuid4().hex
     LAN_IP = get_lan_ip()
 

@@ -29,10 +29,9 @@ body.dragover .drop-overlay{opacity:1;pointer-events:auto}
 .drawer button:hover{background:#111;color:#fff}
 .drawer .sep{height:1px;background:#181818;margin:6px 16px}
 .drawer .info{font-size:11px;color:#666;padding:2px 20px}
-.lang-buttons{display:flex;gap:6px;padding:8px 16px}
-.lang-btn{flex:1;background:#111;border:1px solid #222;color:#888;padding:6px;border-radius:6px;font-size:11px;text-align:center;cursor:pointer;transition:.15s}
-.lang-btn:hover{border-color:#444;color:#ccc}
-.lang-btn.active{border-color:#60a5fa;color:#60a5fa}
+.lang-select{display:block;width:calc(100% - 32px);margin:4px 16px;padding:8px 12px;background:#111;border:1px solid #222;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;transition:.15s;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.lang-select:hover{border-color:#444;color:#fff}
+.lang-select:focus{outline:none;border-color:#60a5fa}
 /* Main */
 main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
 /* Card */
@@ -81,16 +80,16 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
 .log-scroll{max-height:120px;overflow-y:auto}
 .log-item{font-size:11px;color:#555;font-family:monospace;padding:1px 0}
 /* Overlay */
-.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:100;display:none;align-items:center;justify-content:center}
-.overlay.open{display:flex}
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .12s ease}
+.overlay.open{opacity:1;pointer-events:auto}
 .overlay-content{text-align:center;padding:40px}
 .overlay-content img{width:280px;height:280px;border-radius:16px;margin-bottom:12px;background:#000;object-fit:contain}
 .overlay-content .url{font-size:12px;color:#555;word-break:break-all;margin-bottom:16px}
 .overlay-content .close{background:none;border:1px solid #333;color:#aaa;padding:8px 24px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
 .overlay-content .close:hover{border-color:#666;color:#fff}
 /* Confirm dialog */
-.confirm-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:101;display:none;align-items:center;justify-content:center}
-.confirm-overlay.open{display:flex}
+.confirm-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:101;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .12s ease}
+.confirm-overlay.open{opacity:1;pointer-events:auto}
 .confirm-box{background:#0a0a0a;border:1px solid #181818;border-radius:16px;padding:28px;width:320px;text-align:center}
 .confirm-box h3{font-size:14px;font-weight:700;margin-bottom:8px}
 .confirm-box p{font-size:12px;color:#a0a0a0;margin-bottom:20px;line-height:1.5}
@@ -100,6 +99,17 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
 .confirm-btn .cancel:hover{background:#1a1a1a}
 .confirm-btn .danger{background:#ef4444;color:#fff}
 .confirm-btn .danger:hover{background:#dc2626}
+/* Upload Progress Bar (bottom, compact) */
+.up-bar-wrap{position:fixed;bottom:0;left:0;right:0;z-index:999;display:none;background:#0d0d0d;border-top:1px solid #222;padding:4px 12px;font-size:11px;align-items:center;gap:6px;height:32px}
+.up-bar-wrap.open{display:flex}
+.up-bar-wrap .up-icon{flex-shrink:0;color:#60a5fa}
+.up-bar-wrap .up-name{color:#eee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;flex-shrink:0}
+.up-bar-wrap .up-sep{color:#333}
+.up-bar-wrap .up-size{color:#666;flex-shrink:0}
+.up-bar-wrap .up-track{flex:1;height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;min-width:40px}
+.up-bar-wrap .up-fill{height:100%;background:#60a5fa;border-radius:2px;width:0%;transition:width .2s}
+.up-bar-wrap .up-pct{color:#aaa;font-family:monospace;flex-shrink:0;min-width:32px;text-align:right}
+.up-bar-wrap .up-speed{color:#555;flex-shrink:0;min-width:50px}
 /* Toast */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#eee;padding:10px 20px;border-radius:10px;font-size:12px;border:1px solid #222;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none}
 .toast.show{opacity:1}
@@ -121,6 +131,8 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
 <nav class="drawer" id="drawer">
   <div class="sec" data-i18n="drawer_sec_storage">STORAGE</div>
   <button onclick="openRecvFolder()">&nbsp;&#128193;&nbsp; <span data-i18n="drawer_open_recv_folder">받은 파일 폴더 열기</span></button>
+  <button onclick="changeRecvDir()">&nbsp;&#128194;&nbsp; <span data-i18n="drawer_change_recv_dir">받는 위치 변경</span></button>
+  <div class="info" id="recvDirPath" style="font-size:10px;color:#555;padding:0 20px 8px;word-break:break-all">...</div>
   <div class="sep"></div>
   <div class="sec" data-i18n="drawer_sec_system">SYSTEM</div>
   <button onclick="regenerateToken()">&nbsp;&#x21bb;&nbsp; <span data-i18n="drawer_regenerate_token">토큰 재생성</span></button>
@@ -133,12 +145,16 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
   <div class="sep"></div>
   <div class="sec" data-i18n="drawer_sec_links">LINKS</div>
   <button onclick="openGitHub()">&nbsp;&#x2197;&nbsp; <span data-i18n="drawer_github">GitHub</span></button>
+  <button onclick="openSite()">&nbsp;&#x2197;&nbsp; <span>Site</span></button>
+  <div class="sep"></div>
+  <div class="sec">NOTIFICATIONS</div>
+  <button id="notifToggle" onclick="toggleNotifications()">&nbsp;&#128276;&nbsp; <span id="notifLabel">알림 켜기</span></button>
   <div class="sep"></div>
   <div class="sec" data-i18n="drawer_sec_language">LANGUAGE</div>
-  <div class="lang-buttons">
-    <button class="lang-btn" data-lang="ko" onclick="switchLanguage('ko')">한국어</button>
-    <button class="lang-btn" data-lang="en" onclick="switchLanguage('en')">English</button>
-  </div>
+  <select class="lang-select" id="langSelect" onchange="switchLanguage(this.value)">
+    <option value="ko" data-i18n-ko="한국어" data-i18n-en="Korean">한국어</option>
+    <option value="en" data-i18n-ko="영어" data-i18n-en="English">English</option>
+  </select>
 </nav>
 
 <!-- Main -->
@@ -212,6 +228,17 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
   </div>
 </div>
 
+<!-- Upload Progress Bar (top) -->
+<div class="up-bar-wrap" id="upBar">
+  <span class="up-icon">&#128228;</span>
+  <span class="up-name" id="upFilename">file.txt</span>
+  <span class="up-sep">|</span>
+  <span class="up-size" id="upFilesize">0 B / 0 B</span>
+  <div class="up-track"><div class="up-fill" id="upFill"></div></div>
+  <span class="up-pct" id="upPct">0%</span>
+  <span class="up-speed" id="upSpeed">--</span>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
@@ -240,6 +267,7 @@ async function _loadLang(code) {
       LANGUAGE = code;
       _LOADING_LANG = null;
       applyTranslations();
+      refreshAll();
     }
   } catch { _LOADING_LANG = null }
 }
@@ -265,10 +293,14 @@ function applyTranslations() {
     }
     el.textContent = val;
   });
-  // Update language button active state
-  document.querySelectorAll('.lang-btn').forEach(btn => {
-    btn.classList.toggle('active', btn.getAttribute('data-lang') === LANGUAGE);
-  });
+  // Update language select
+  const sel = document.getElementById('langSelect');
+  if (sel) {
+    sel.value = LANGUAGE;
+    sel.querySelectorAll('option').forEach(opt => {
+      opt.textContent = opt.getAttribute('data-i18n-' + LANGUAGE) || opt.value;
+    });
+  }
   // Update shared count
   const cntEl = document.getElementById('sharedCount');
   if (cntEl && cntEl._sharedCount !== undefined) {
@@ -330,7 +362,28 @@ async function refreshStatus() {
   statusLabel.removeAttribute('data-i18n');
   const ipEl = document.getElementById('drawerIp').querySelector('[data-i18n="drawer_ip"]') || document.getElementById('drawerIp');
   ipEl.textContent = t('drawer_ip', {ip: s.lan_ip || LAN_IP});
+  updateNotifButton(s.notifications_enabled !== false);
+  updateRecvDirPath(s.recv_dir);
   updateQR();
+}
+
+function updateNotifButton(enabled) {
+  const btn = document.getElementById('notifToggle');
+  const lbl = document.getElementById('notifLabel');
+  if (!btn || !lbl) return;
+  btn.style.color = enabled ? '#22c55e' : '#ef4444';
+  lbl.textContent = enabled ? t('drawer_notif_on') : t('drawer_notif_off');
+}
+
+async function toggleNotifications() {
+  const s = await apiGet('/api/admin/status');
+  if (!s) return;
+  const current = s.notifications_enabled !== false;
+  const r = await apiPost('/api/admin/notifications', {enabled: !current});
+  if (r && r.ok) {
+    updateNotifButton(r.enabled);
+    toast(r.enabled ? t('drawer_notif_on') : t('drawer_notif_off'));
+  }
 }
 
 async function refreshDevices() {
@@ -549,6 +602,26 @@ async function openRecvFolder() {
   await apiPost('/api/admin/recv_open');
 }
 
+function updateRecvDirPath(path) {
+  const el = document.getElementById('recvDirPath');
+  if (el) el.textContent = path || '...';
+}
+
+async function changeRecvDir() {
+  if (typeof pywebview !== 'undefined' && pywebview.api) {
+    const path = await pywebview.api.pick_folder();
+    if (path) {
+      const r = await apiPost('/api/admin/recv_dir', {path: path});
+      if (r && r.ok) {
+        updateRecvDirPath(r.recv_dir);
+        toast(r.recv_dir);
+      }
+    }
+  } else {
+    toast(t('toast_pick_folder_desktop_only'));
+  }
+}
+
 async function doClearFiles() {
   closeConfirm();
   const r = await apiPost('/api/admin/recv_clear');
@@ -570,6 +643,10 @@ function openGitHub() {
   window.open('https://github.com/GNBD/AYA-Share', '_blank');
 }
 
+function openSite() {
+  window.open('https://ayashare.netlify.app/', '_blank');
+}
+
 // ── Helpers ──
 function formatSize(n) {
   if (n < 1024) return n + 'B';
@@ -585,13 +662,66 @@ function ts() {
 }
 
 function esc(s) {
-  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]);
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
 }
 function escAttr(s) {
   return esc(s).replace(/'/g, '&apos;');
 }
 
+function formatSpeed(bps) {
+  if (!bps || bps <= 0) return '--';
+  if (bps < 1024) return bps.toFixed(0) + ' B/s';
+  if (bps < 1048576) return (bps / 1024).toFixed(1) + ' KB/s';
+  return (bps / 1048576).toFixed(1) + ' MB/s';
+}
+
+// ── SSE for upload progress ──
+function connectUploadSSE() {
+  const es = new EventSource(`/api/events?token=${TOKEN}`);
+  es.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'upload_progress') {
+        handleUploadProgress(d.uploads || []);
+      }
+    } catch (_) {}
+  };
+  es.onerror = () => { es.close(); setTimeout(connectUploadSSE, 3000) };
+}
+
+let _upHideTimer = null;
+
+function handleUploadProgress(uploads) {
+  const bar = document.getElementById('upBar');
+  const active = uploads.filter(u => u.status === 'uploading');
+  const completed = uploads.filter(u => u.status === 'completed');
+
+  if (_upHideTimer) { clearTimeout(_upHideTimer); _upHideTimer = null; }
+
+  if (active.length > 0) {
+    const u = active[active.length - 1];
+    document.getElementById('upFilename').textContent = u.filename;
+    document.getElementById('upFilesize').textContent = formatSize(u.received) + ' / ' + formatSize(u.total_size);
+    const pct = u.total_size > 0 ? Math.round(u.received / u.total_size * 100) : 0;
+    document.getElementById('upFill').style.width = pct + '%';
+    document.getElementById('upPct').textContent = pct + '%';
+    document.getElementById('upSpeed').textContent = formatSpeed(u.speed);
+    bar.classList.add('open');
+  } else if (completed.length > 0) {
+    const u = completed[completed.length - 1];
+    document.getElementById('upFilename').textContent = u.filename;
+    document.getElementById('upFilesize').textContent = t('upload_complete');
+    document.getElementById('upFill').style.width = '100%';
+    document.getElementById('upPct').textContent = '100%';
+    document.getElementById('upSpeed').textContent = '';
+    _upHideTimer = setTimeout(() => { bar.classList.remove('open'); }, 2000);
+  } else {
+    bar.classList.remove('open');
+  }
+}
+
 // ── Polling ──
+setInterval(refreshStatus, 5000);
 setInterval(refreshDevices, 3000);
 setInterval(refreshShared, 5000);
 
@@ -606,6 +736,7 @@ setInterval(refreshShared, 5000);
   }
   applyTranslations();
   refreshAll();
+  connectUploadSSE();
 })();
 </script>
 </body>

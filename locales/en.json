@@ -3,6 +3,7 @@
   "appbar_regenerate_title": "↺",
   "drawer_sec_storage": "STORAGE",
   "drawer_open_recv_folder": "Open received files folder",
+  "drawer_change_recv_dir": "Change save location",
   "drawer_sec_system": "SYSTEM",
   "drawer_regenerate_token": "Regenerate token",
   "drawer_clear_sent_files": "Delete sent files",
@@ -57,5 +58,8 @@
   "error_no_file": "no file",
   "error_empty_filename": "empty filename",
   "error_size_exceeded": "total size exceeds 10GB limit",
-  "msg_shared_cancelled": "Sharing has been cancelled"
+  "msg_shared_cancelled": "Sharing has been cancelled",
+  "upload_complete": "Upload complete ✓",
+  "drawer_notif_on": "Notifications ON",
+  "drawer_notif_off": "Notifications OFF"
 }

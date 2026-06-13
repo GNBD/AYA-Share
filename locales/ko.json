@@ -3,6 +3,7 @@
   "appbar_regenerate_title": "↺",
   "drawer_sec_storage": "STORAGE",
   "drawer_open_recv_folder": "받은 파일 폴더 열기",
+  "drawer_change_recv_dir": "받는 위치 변경",
   "drawer_sec_system": "SYSTEM",
   "drawer_regenerate_token": "토큰 재생성",
   "drawer_clear_sent_files": "전송 파일 삭제",
@@ -57,5 +58,8 @@
   "error_no_file": "no file",
   "error_empty_filename": "empty filename",
   "error_size_exceeded": "total size exceeds 10GB limit",
-  "msg_shared_cancelled": "공유가 해제되었습니다"
+  "msg_shared_cancelled": "공유가 해제되었습니다",
+  "upload_complete": "업로드 완료 ✓",
+  "drawer_notif_on": "알림 켜기",
+  "drawer_notif_off": "알림 끄기"
 }

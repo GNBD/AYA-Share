@@ -306,7 +306,6 @@
 
     /* 업로드 모달 */
     .modal-overlay {
-      display: none;
       position: fixed;
       top: 0;
       left: 0;
@@ -316,11 +315,25 @@
       backdrop-filter: blur(4px);
       z-index: 1000;
       align-items: center;
-      justify-content: center
+      justify-content: center;
+      display: flex;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .12s ease
     }
 
     .modal-overlay.show {
-      display: flex
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    .modal-box {
+      transform: scale(.96);
+      transition: transform .12s ease
+    }
+
+    .modal-overlay.show .modal-box {
+      transform: scale(1)
     }
 
     .modal-box {
@@ -509,6 +522,24 @@
           onclick="closePreview()">&times;</button>
       </div>
       <div class="preview-body" id="preview-body" style="overflow:auto;max-height:80vh;background:#0a0a0a"></div>
+    </div>
+  </div>
+
+  <!-- 다운로드 진행 모달 -->
+  <div class="modal-overlay" id="download-modal">
+    <div class="modal-box">
+      <div class="filename" id="dl-filename">file.txt</div>
+      <div class="filesize" id="dl-filesize"></div>
+      <div class="modal-progress">
+        <div class="fill" id="dl-fill"></div>
+      </div>
+      <div class="modal-stats">
+        <span id="dl-pct">0%</span>
+        <span class="sep">|</span>
+        <span class="speed" id="dl-speed">--</span>
+      </div>
+      <button class="modal-cancel" id="dl-cancel" data-i18n="cancel_btn">Cancel</button>
+      <p class="modal-warn" data-i18n="modal_warn">Closing the browser or leaving this page will abort the download.</p>
     </div>
   </div>
 
@@ -735,7 +766,7 @@
             </div>
             <div class="meta">${formatSize(i.size)}</div>
           </div>
-          <a href="${downloadUrl}" class="btn btn-primary" download>${t('download_btn')}</a>
+          <button class="btn btn-primary" onclick="startDownload('${escAttr(i.name)}','${escAttr(fpath)}',${i.size||0})">${t('download_btn')}</button>
         </div>`;
         }
       }).join('');
@@ -1167,6 +1198,93 @@
         .catch(() => {
           if (!cancelled) { overlay.remove(); toast(t('download_failed')); }
         });
+    }
+
+    // ── 프로그레시브 다운로드 (XHR + Blob → 즉시 저장, fallback 직링크) ──
+    let _dlXhr = null;
+
+    function startDownload(name, path, size) {
+      const url = `/download/${encodeURIComponent(path)}?token=${TOKEN}`;
+
+      const modal = document.getElementById('download-modal');
+      const filenameEl = document.getElementById('dl-filename');
+      const filesizeEl = document.getElementById('dl-filesize');
+      const fillEl = document.getElementById('dl-fill');
+      const pctEl = document.getElementById('dl-pct');
+      const speedEl = document.getElementById('dl-speed');
+      const cancelBtn = document.getElementById('dl-cancel');
+
+      filenameEl.textContent = name;
+      filesizeEl.textContent = formatSize(size);
+      fillEl.style.width = '0%';
+      pctEl.textContent = '0%';
+      speedEl.textContent = '--';
+      modal.classList.add('show');
+
+      var _dlAbort = false;
+      _dlXhr = new XMLHttpRequest();
+      _dlXhr.open('GET', url);
+      _dlXhr.responseType = 'blob';
+
+      let startTime = Date.now(), lastTime = startTime, lastLoaded = 0;
+
+      _dlXhr.onprogress = function (e) {
+        if (!e.lengthComputable || !e.total) return;
+        const pct = Math.round(e.loaded / e.total * 100);
+        const now = Date.now();
+        if (now - lastTime > 200) {
+          fillEl.style.width = pct + '%';
+          pctEl.textContent = pct + '%';
+          filesizeEl.textContent = formatSize(e.total);
+          const dt = (now - lastTime) / 1000;
+          if (dt > 0) {
+            speedEl.textContent = formatSpeed((e.loaded - lastLoaded) / dt);
+            lastLoaded = e.loaded;
+            lastTime = now;
+          }
+        }
+      };
+
+      _dlXhr.onload = function () {
+        if (_dlXhr.readyState !== 4) return;
+        modal.classList.remove('show');
+        try {
+          const blob = _dlXhr.response;
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+          }, 2000);
+          toast(t('upload_complete') + ': ' + name);
+        } catch (e) {
+          // Blob save failed → fallback to direct download
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = name;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      };
+
+      _dlXhr.onerror = _dlXhr.onabort = function () {
+        modal.classList.remove('show');
+        if (!_dlAbort) toast(t('download_failed'));
+      };
+
+      cancelBtn.onclick = function () {
+        _dlXhr && _dlXhr.abort();
+        _dlAbort = true;
+        modal.classList.remove('show');
+      };
+      _dlAbort = false;
+      _dlXhr.send();
     }
 
     // ── 클라이언트 디바이스 식별 ──
