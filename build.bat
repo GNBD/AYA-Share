@@ -1,0 +1,1 @@
+pyinstaller --onefile --noconsole --icon=ayashare.ico --add-data "ayashare.ico;." --add-data "templates;templates" --add-data "locales;locales" --name "AYA Share" --hidden-import webview.platforms.winforms --hidden-import webview.platforms.win32 --hidden-import clr --hidden-import clr_loader --hidden-import proxy_tools main.py

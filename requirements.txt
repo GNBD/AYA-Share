@@ -1,0 +1,6 @@
+flask
+pywebview
+qrcode[pil]
+Pillow
+requests
+waitress

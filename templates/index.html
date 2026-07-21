@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AYA Share</title>
+  <link rel="icon" href="/download/ayashare.ico?token={{ token }}" type="image/x-icon">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #eee;
+      min-height: 100vh
+    }
+
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 16px
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 4px 12px
+    }
+
+    header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: -.3px
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    header .badge {
+      background: #1a3a2a;
+      color: #4ade80;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 500
+    }
+
+    .lang-btn {
+      background: 0;
+      border: 1px solid #333;
+      color: #888;
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: .15s
+    }
+
+    .lang-btn:hover {
+      border-color: #666;
+      color: #eee
+    }
+
+    .lang-btn.active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff
+    }
+
+    .card {
+      background: #141414;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 12px;
+      border: 1px solid #1e1e1e
+    }
+
+    .card h2 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #999;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px
+    }
+
+    .dropzone {
+      border: 2px dashed #2a2a2a;
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 10px
+    }
+
+    .dropzone:hover,
+    .dropzone.dragover {
+      border-color: #4a9eff;
+      background: #0d1a2e
+    }
+
+    .dropzone .icon {
+      font-size: 32px;
+      display: block;
+      margin-bottom: 6px
+    }
+
+    .dropzone p {
+      font-size: 13px;
+      color: #666
+    }
+
+    .dropzone input {
+      display: none
+    }
+
+    .upload-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px
+    }
+
+    .upload-btn {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      background: #1a1a1a;
+      color: #ccc;
+      font-size: 13px;
+      cursor: pointer;
+      transition: .15s;
+      text-align: center
+    }
+
+    .upload-btn:hover,
+    .upload-btn:active {
+      background: #2563eb;
+      border-color: #2563eb;
+      color: #fff
+    }
+
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 8px;
+      flex-wrap: wrap
+    }
+
+    .breadcrumb a {
+      color: #4a9eff;
+      text-decoration: none;
+      cursor: pointer
+    }
+
+    .breadcrumb a:hover {
+      text-decoration: underline
+    }
+
+    .breadcrumb span {
+      color: #999
+    }
+
+    .file-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #1a1a1a
+    }
+
+    .file-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0
+    }
+
+    .file-item .icon {
+      font-size: 20px;
+      width: 28px;
+      text-align: center;
+      flex-shrink: 0
+    }
+
+    .file-info {
+      flex: 1;
+      min-width: 0
+    }
+
+    .file-info .name {
+      font-size: 13px;
+      color: #eee;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .file-info .meta {
+      font-size: 11px;
+      color: #555;
+      margin-top: 1px
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #222;
+      border: none;
+      color: #fff;
+      padding: 5px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: .15s;
+      text-decoration: none;
+      white-space: nowrap
+    }
+
+    .btn:hover {
+      background: #333
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #fff
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8
+    }
+
+    .btn-zip {
+      background: #555;
+      color: #fff
+    }
+
+    .btn-zip:hover {
+      background: #666
+    }
+
+    .empty {
+      padding: 28px 0;
+      text-align: center;
+      color: #444;
+      font-size: 13px
+    }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1c1c1e;
+      color: #eee;
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      z-index: 999;
+      opacity: 0;
+      transition: opacity .25s;
+      pointer-events: none;
+      border: 1px solid #2a2a2a;
+      backdrop-filter: blur(8px)
+    }
+
+    .toast.show {
+      opacity: 1
+    }
+
+    .new-dot {
+      display: inline-block;
+      width: 7px;
+      height: 7px;
+      background: #4ade80;
+      border-radius: 50%;
+      margin-left: 6px;
+      animation: pulse 1.5s infinite
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: .3
+      }
+    }
+
+    /* 업로드 모달 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, .7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      display: flex;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .12s ease
+    }
+
+    .modal-overlay.show {
+      opacity: 1;
+      pointer-events: auto
+    }
+
+    .modal-box {
+      transform: scale(.96);
+      transition: transform .12s ease
+    }
+
+    .modal-overlay.show .modal-box {
+      transform: scale(1)
+    }
+
+    .modal-box {
+      background: #161616;
+      border-radius: 18px;
+      padding: 28px;
+      width: 90%;
+      max-width: 340px;
+      border: 1px solid #2a2a2a;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4)
+    }
+
+    .modal-box .filename {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-bottom: 4px
+    }
+
+    .modal-box .queue-info {
+      font-size: 12px;
+      color: #2563eb;
+      font-weight: 500;
+      margin-bottom: 6px
+    }
+
+    .modal-box .filesize {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 18px
+    }
+
+    .modal-progress {
+      height: 8px;
+      background: #222;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 10px
+    }
+
+    .modal-progress .fill {
+      height: 100%;
+      background: linear-gradient(90deg, #2563eb, #3b82f6);
+      border-radius: 4px;
+      width: 0%;
+      transition: width .2s
+    }
+
+    .modal-stats {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: #aaa;
+      font-family: monospace
+    }
+
+    .modal-stats .sep {
+      color: #333
+    }
+
+    .modal-cancel {
+      display: block;
+      margin: 20px auto 0;
+      background: #222;
+      border: 1px solid #333;
+      color: #888;
+      padding: 8px 24px;
+      border-radius: 10px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: .15s
+    }
+
+    .modal-cancel:hover {
+      background: #2a2a2a;
+      border-color: #dc2626;
+      color: #dc2626
+    }
+
+    .modal-warn {
+      color: #444;
+      font-size: 11px;
+      text-align: center;
+      margin-top: 16px;
+      line-height: 1.4
+    }
+
+    /* 연결 유실 안내 배너 */
+    .conn-banner {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 2000;
+      background: #b91c1c;
+      color: #fff;
+      text-align: center;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 500
+    }
+
+    .conn-banner.show {
+      display: block
+    }
+  </style>
+</head>
+
+<body>
+  <div class="conn-banner" id="conn-banner"></div>
+
+  <div class="container">
+    <header>
+      <h1>AYA Share</h1>
+      <div class="header-right">
+        <span class="badge" id="server-badge">{{ lan_ip }}:{{ port }}</span>
+        <button class="lang-btn" id="lang-btn" onclick="toggleLang()">KO</button>
+      </div>
+    </header>
+
+    <div class="card">
+      <h2><i class="bi-cloud-upload"></i> <span data-i18n="upload_title">PC로 업로드</span></h2>
+      <div class="dropzone" id="dropzone">
+        <span class="icon"><i class="bi-cloud-arrow-up"></i></span>
+        <p data-i18n="drop_hint" id="drop-text">탭하거나 파일을 끌어주세요</p>
+      </div>
+      <div class="upload-buttons">
+        <button class="upload-btn" id="btn-files"><i class="bi-file-earmark"></i> <span data-i18n="btn_files">파일 선택</span></button>
+        <button class="upload-btn" id="btn-folder"><i class="bi-folder2-open"></i> <span data-i18n="btn_folder">폴더 선택</span></button>
+      </div>
+      <input type="file" id="file-input" multiple hidden>
+      <input type="file" id="folder-input" webkitdirectory hidden>
+    </div>
+
+    <div class="card">
+      <h2 id="download-heading"><i class="bi-folder2-open"></i> 공유된 파일</h2>
+      <div class="breadcrumb" id="breadcrumb" style="padding: 4px 4px 12px; border-bottom: 1px solid #1a1a1a; margin-bottom: 8px; display: none;"></div>
+      <div id="file-list">
+        <div class="empty" data-i18n="no_files">No files shared yet</div>
+      </div>
+    </div>
+    <footer
+      style="text-align: center; padding: 24px 0 8px; color: #444; font-size: 12px; border-top: 1px solid #1a1a1a; margin-top: 24px;">
+      © AYA Share All rights reserved.
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 업로드 진행 모달 -->
+  <div class="modal-overlay" id="upload-modal">
+    <div class="modal-box">
+      <div class="filename" id="modal-filename">uploading...</div>
+      <div class="queue-info" id="modal-queue"></div>
+      <div class="filesize" id="modal-filesize"></div>
+      <div class="modal-progress">
+        <div class="fill" id="modal-fill"></div>
+      </div>
+      <div class="modal-stats">
+        <span id="modal-pct">0%</span>
+        <span class="sep">|</span>
+        <span class="speed" id="modal-speed">--</span>
+      </div>
+      <button class="modal-cancel" id="modal-cancel" data-i18n="cancel_btn">Cancel</button>
+      <p class="modal-warn" data-i18n="modal_warn">Closing the browser or leaving this page will abort the upload.</p>
+    </div>
+  </div>
+
+  <!-- 프리뷰 보기 모달 -->
+  <div class="modal-overlay" id="preview-modal" onclick="if(event.target===this)closePreview()">
+    <div class="modal-box" style="max-width:90vw;max-height:90vh;padding:0">
+      <div class="preview-header"
+        style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #2a2a2a">
+        <div class="preview-title" id="preview-title"
+          style="font-weight:600;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">
+        </div>
+        <button class="modal-cancel" id="preview-close"
+          style="background:none;border:none;color:#888;font-size:24px;line-height:1;padding:4px;cursor:pointer"
+          onclick="closePreview()">&times;</button>
+      </div>
+      <div class="preview-body" id="preview-body" style="overflow:auto;max-height:80vh;background:#0a0a0a"></div>
+    </div>
+  </div>
+
+  <!-- 다운로드 진행 모달 -->
+  <div class="modal-overlay" id="download-modal">
+    <div class="modal-box">
+      <div class="filename" id="dl-filename">file.txt</div>
+      <div class="filesize" id="dl-filesize"></div>
+      <div class="modal-progress">
+        <div class="fill" id="dl-fill"></div>
+      </div>
+      <div class="modal-stats">
+        <span id="dl-pct">0%</span>
+        <span class="sep">|</span>
+        <span class="speed" id="dl-speed">--</span>
+      </div>
+      <button class="modal-cancel" id="dl-cancel" data-i18n="cancel_btn">Cancel</button>
+      <p class="modal-warn" data-i18n="modal_warn">Closing the browser or leaving this page will abort the download.</p>
+    </div>
+  </div>
+
+  <!-- 폴더 액션 모달 -->
+  <div class="modal-overlay" id="folder-modal">
+    <div class="modal-box">
+      <div class="filename" id="folder-modal-name">Folder Name</div>
+      <div class="filesize" style="margin-bottom:20px" data-i18n="folder_action_hint">Choose how to download this folder
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary" id="btn-zip-dl" style="padding:12px;justify-content:center"><i class="bi-download"></i> <span>Download ZIP</span></button>
+        <button class="btn btn-zip" id="btn-browse-dl" style="padding:12px;justify-content:center"><i class="bi-folder2-open"></i> <span>Browse</span></button>
+      </div>
+      <button class="modal-cancel" data-i18n="cancel_btn"
+        onclick="document.getElementById('folder-modal').classList.remove('show')">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    const TOKEN = new URLSearchParams(location.search).get('token') || '';
+    const TODAY = '{{ today }}';
+    let currentDir = 'to phone';
+
+    // ── 다국어 지원 (i18n) ──
+    const _lang = { ko: {}, en: {} };
+    function def(key, ko, en) { _lang.ko[key] = ko; _lang.en[key] = en }
+    def('upload_title', 'PC로 업로드', 'Upload to PC');
+    def('download_title', 'PC에서 다운로드', 'Download from PC');
+    def('drop_hint', '탭하거나 파일을 끌어주세요', 'Tap or drag files here');
+    def('no_files', '아직 공유된 파일이 없습니다', 'No files shared yet');
+    def('cancel_btn', '취소', 'Cancel');
+    def('modal_warn', '브라우저를 닫거나 페이지를 벗어나면 업로드가 중단됩니다.', 'Closing the browser or leaving this page will abort the upload.');
+    def('saving', '저장됨', 'Saved');
+    def('upload_fail', '업로드 실패', 'Upload failed');
+    def('cancelled', '취소됨', 'Cancelled');
+    def('new_files', '새 파일 {n}개', '{n} new file(s)');
+    def('conn_lost', '연결이 끊겼습니다. 서버가 종료되었습니다.', 'Connection lost. Server offline.');
+    def('conn_back', '재연결됨.', 'Reconnected.');
+    def('select_file', '파일 선택', 'Select File');
+    def('btn_files', '파일 선택', 'Select Files');
+    def('btn_folder', '폴더 선택', 'Select Folder');
+    def('empty_dir', '빈 폴더', 'Empty folder');
+    def('download_zip', 'ZIP 다운로드', 'Download ZIP');
+    def('queue_progress', '업로드 중 {n} / {total}', 'Uploading {n} / {total}');
+    def('folder_action_hint', '다운로드 방식을 선택하세요', 'Choose how to download this folder');
+    def('upload_complete', '업로드 완료', 'Upload complete');
+    def('btn_zip_all', 'ZIP으로 다운로드', 'Download as ZIP');
+    def('btn_browse', '내용만 다운로드 (개별 선택)', 'Browse & Download');
+    def('root', '루트', 'Root');
+    def('loading', '로딩 중...', 'Loading...');
+    def('failed_load', '로드 실패', 'Failed to load');
+    def('cannot_play', '재생 불가', 'Cannot play');
+    def('preview_no', '프리뷰를 지원하지 않는 형식입니다', 'Preview not available for this file type');
+    def('compressing', '압축 중...', 'Compressing...');
+    def('downloading', '다운로드 중...', 'Downloading...');
+    def('folder_desc', '폴더', 'folder');
+    def('btn_open_folder', '열기', 'Open');
+    def('download_failed', '다운로드 실패', 'Download failed');
+    def('download_btn', '다운로드', 'Download');
+
+    // 기본 언어 설정을 로컬스토리지에서 가져오거나 한국어('ko')를 기본값으로 지정
+    let lang = localStorage.getItem('aya_lang') || 'ko';
+    document.documentElement.lang = lang;
+
+    function t(key, ...args) {
+      let s = (_lang[lang] && _lang[lang][key]) || key;
+      if (args.length) {
+        if (key === 'queue_progress') {
+          s = s.replace('{n}', args[0]).replace('{total}', args[1]);
+        } else {
+          s = s.replace('{n}', args[0]);
+        }
+      }
+      return s;
+    }
+
+    function toggleLang() {
+      // 언어 스위칭
+      lang = lang === 'ko' ? 'en' : 'ko';
+      localStorage.setItem('aya_lang', lang);
+      document.documentElement.lang = lang;
+
+      applyLang();
+      loadFiles(currentDir);
+    }
+
+    function applyLang() {
+      // i18n 번역값 일괄 업데이트
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.dataset.i18n;
+        el.textContent = t(key);
+      });
+      document.getElementById('drop-text').textContent = t('drop_hint');
+
+      // 토글 버튼의 텍스트가 "현재 설정과 반대 언어(클릭 시 전환될 언어)"를 가리키도록 설정
+      // 예: 현재 한국어('ko') 상태면 영문 전환용 버튼인 'EN'을 노출, 영어('en') 상태면 한국어 전환용 버튼인 'KO'를 노출
+      const langBtn = document.getElementById('lang-btn');
+      if (langBtn) {
+        langBtn.textContent = lang === 'ko' ? 'EN' : 'KO';
+      }
+    }
+
+    // 초기화 수행 시 언어 적용
+    applyLang();
+
+    // ── 브라우저 시스템 알림 권한 요청 ──
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted' && Notification.permission !== 'denied') {
+      Notification.requestPermission();
+    }
+
+    // ── 서버 오프라인 모니터링 ──
+    let connected = true;
+    let connTimer = null;
+    const banner = document.getElementById('conn-banner');
+    banner.textContent = t('conn_lost');
+
+    function setConnected(ok) {
+      if (ok === connected) return;
+      connected = ok;
+      if (ok) {
+        banner.classList.remove('show');
+        toast(t('conn_back'));
+      } else {
+        banner.textContent = t('conn_lost');
+        banner.classList.add('show');
+      }
+    }
+    function markLost() {
+      if (connTimer) return;
+      connTimer = setTimeout(() => setConnected(false), 3000);
+    }
+    function markAlive() {
+      if (connTimer) { clearTimeout(connTimer); connTimer = null }
+      if (!connected) setConnected(true);
+    }
+
+    // ── SSE 실시간 이벤트 ──
+    function connectSSE() {
+      const es = new EventSource(`/api/events?token=${TOKEN}`);
+      es.onmessage = e => {
+        markAlive();
+        try {
+          const d = JSON.parse(e.data);
+          if (d.type === 'update') {
+            if (d.msg) toast(d.msg);
+            // Always refresh from server to maintain virtual folder structure and current view context
+            loadFiles(currentDir);
+          }
+        } catch (_) { }
+      };
+      es.onerror = () => { markLost(); es.close(); setTimeout(connectSSE, 3000) };
+    }
+    connectSSE();
+
+    // ── 토스트 팝업 (웹 알림 팝업) ──
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    // ── 로컬 디바이스 푸시 알림 (선택 사항) ──
+    function showWebPushNotification(title, message) {
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        try {
+          new Notification(title, { body: message });
+        } catch (e) {
+          console.warn("Notification error:", e);
+        }
+      }
+    }
+
+    // ── 가상 또는 물리 디렉토리의 파일 목록을 렌더링 ──
+    function renderFiles(items, target) {
+      const el = document.getElementById('file-list');
+      const heading = document.getElementById('download-heading');
+      if (!el || !heading) return;
+      
+      renderBreadcrumb(target);
+
+      const safeItems = items || [];
+      
+      // 'to phone' 흔적 필터링 및 제목에 경로 표시
+      let displayPath = target.replace(/to phone\/?/g, '').replace(/\/$/, "");
+      if (!displayPath) displayPath = "/"; // 최상단은 간단히 / 로 표시
+      
+      heading.innerHTML = `<i class="bi-folder2-open"></i> ${displayPath} (${safeItems.length})`;
+
+      if (safeItems.length === 0) {
+        el.innerHTML = '<div class="empty" data-i18n="no_files">' + t('no_files') + '</div>';
+        return;
+      }
+
+      let html = '';
+      html += safeItems.map(i => {
+        const fpath = (target ? (target.endsWith('/') ? target : target + '/') : '') + i.name;
+        const downloadUrl = `/download/${enc(fpath)}?token=${TOKEN}`;
+
+        if (i.type === 'dir') {
+          return `
+        <div class="file-item" style="cursor:pointer" onclick="showFolderModal('${escAttr(fpath)}', '${escAttr(i.name)}')">
+          <span class="icon"><i class="bi-folder2-open"></i></span>
+          <div class="file-info">
+            <div class="name">${esc(i.name)}/</div>
+            <div class="meta">${t('folder_desc')}</div>
+          </div>
+          <button class="btn btn-zip">${t('btn_open_folder')}</button>
+        </div>`;
+        } else {
+          const ext = i.name.split('.').pop().toLowerCase();
+          let icon;
+          if (['txt', 'md', 'json', 'js', 'py', 'html', 'css', 'xml', 'csv', 'log', 'ini', 'cfg', 'conf', 'yaml', 'yml'].includes(ext)) {
+            icon = 'bi-file-earmark-text';
+          } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+            icon = 'bi-image';
+          } else if (['mp4', 'webm', 'mov', 'm4v'].includes(ext)) {
+            icon = 'bi-film';
+          } else if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) {
+            icon = 'bi-music-note';
+          } else if (['pdf'].includes(ext)) {
+            icon = 'bi-file-earmark-pdf';
+          } else {
+            icon = 'bi-file-earmark';
+          }
+          const previewable = ['txt', 'md', 'json', 'js', 'py', 'html', 'css', 'xml', 'csv', 'log', 'ini', 'cfg', 'conf', 'yaml', 'yml',
+            'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg',
+            'mp4', 'webm', 'mov', 'm4v',
+            'mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac',
+            'pdf'].includes(ext);
+          return `
+        <div class="file-item">
+          <span class="icon"><i class="${icon}"></i></span>
+          <div class="file-info" style="flex:1;min-width:0">
+            <div class="name" ${previewable ? `onclick="openPreview('${escAttr(i.name)}','${escAttr(fpath)}')"` : ''} style="${previewable ? 'cursor:pointer; text-decoration:underline' : ''}">
+              ${esc(i.name)}
+            </div>
+            <div class="meta">${formatSize(i.size)}</div>
+          </div>
+          <button class="btn btn-primary" onclick="startDownload('${escAttr(i.name)}','${escAttr(fpath)}',${i.size||0})">${t('download_btn')}</button>
+        </div>`;
+        }
+      }).join('');
+      el.innerHTML = html;
+    }
+
+    // ── 브레드크럼(경로 이동) 렌더링 ──
+    function renderBreadcrumb(path) {
+      const el = document.getElementById('breadcrumb');
+      if (!el) return;
+
+      const normPath = path.replace(/\\/g, '/').replace(/\/+$/, '');
+      const parts = normPath.split('/').filter(p => p && p !== 'to phone');
+      
+      if (parts.length === 0) {
+        el.style.display = 'none';
+        return;
+      }
+      el.style.display = 'flex';
+
+      let html = `<a onclick="loadFiles('')">${t('root')}</a>`;
+      let currentPath = '';
+      
+      // 만약 'received' 폴더 아래에 있다면 그 경로를 유지해야 함
+      const isReceived = normPath.startsWith('received');
+      if (isReceived) {
+          // 'received' 자체도 하나의 경로로 처리됨
+      }
+
+      parts.forEach((p, i) => {
+        currentPath += (currentPath ? '/' : '') + p;
+        html += ` <span>&gt;</span> `;
+        if (i === parts.length - 1) {
+          html += `<span style="color:#eee">${esc(p)}</span>`;
+        } else {
+          html += `<a onclick="loadFiles('${escAttr(currentPath)}')">${esc(p)}</a>`;
+        }
+      });
+
+      el.innerHTML = html;
+    }
+
+    // ── 고속 업로드 엔진 (대용량 청크 분할 및 싱글 스레드 병합 처리) ──
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('file-input');
+    const folderInput = document.getElementById('folder-input');
+    const modal = document.getElementById('upload-modal');
+    const modalName = document.getElementById('modal-filename');
+    const modalSize = document.getElementById('modal-filesize');
+    const modalFill = document.getElementById('modal-fill');
+    const modalPct = document.getElementById('modal-pct');
+    const modalSpeed = document.getElementById('modal-speed');
+    const modalCancel = document.getElementById('modal-cancel');
+    const modalQueue = document.getElementById('modal-queue');
+
+    const CHUNK_SIZE = 32 * 1024 * 1024;
+    const CHUNK_THRESHOLD = 50 * 1024 * 1024;
+    let uploadQueue = [];
+    let isUploading = false;
+    let abortController = null;
+    let stats = { completed: 0, total: 0 };
+
+    window.addEventListener('beforeunload', e => {
+      if (isUploading) { e.preventDefault(); e.returnValue = '' }
+    });
+
+    // 업로드 트리거
+    document.getElementById('btn-files').addEventListener('click', () => fileInput.click());
+    document.getElementById('btn-folder').addEventListener('click', () => folderInput.click());
+
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover') });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', async e => {
+      e.preventDefault(); dropzone.classList.remove('dragover');
+      const items = e.dataTransfer.items;
+      if (items && items.length) {
+        for (const item of items) await walkEntry(item.webkitGetAsEntry(), '');
+      } else if (e.dataTransfer.files.length) {
+        for (const f of e.dataTransfer.files) addToQueue(f, '');
+      }
+      processQueue();
+    });
+
+    fileInput.addEventListener('change', () => {
+      for (const f of fileInput.files) addToQueue(f, '');
+      fileInput.value = '';
+      processQueue();
+    });
+
+    folderInput.addEventListener('change', () => {
+      for (const f of folderInput.files) {
+        const path = f.webkitRelativePath || '';
+        addToQueue(f, path ? path.substring(0, path.lastIndexOf('/')) : '');
+      }
+      folderInput.value = '';
+      processQueue();
+    });
+
+    async function walkEntry(entry, path) {
+      if (!entry) return;
+      if (entry.isFile) {
+        return new Promise(res => entry.file(f => { addToQueue(f, path); res(); }));
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader();
+        return new Promise(res => {
+          reader.readEntries(async entries => {
+            for (const e of entries) await walkEntry(e, path + entry.name + '/');
+            res();
+          });
+        });
+      }
+    }
+
+    function addToQueue(file, path) {
+      uploadQueue.push({ file, path });
+      stats.total++;
+    }
+
+    async function processQueue() {
+      if (isUploading || uploadQueue.length === 0) return;
+      isUploading = true;
+      modal.classList.add('show');
+
+      while (uploadQueue.length > 0) {
+        const item = uploadQueue.shift();
+        stats.completed++;
+
+        modalName.textContent = `[${stats.completed}/${stats.total}] ${item.file.name}`;
+        modalQueue.textContent = t('queue_progress', stats.completed, stats.total);
+        modalSize.textContent = formatSize(item.file.size);
+
+        try {
+          if (item.file.size < CHUNK_THRESHOLD) {
+            await performFastUpload(item.file, item.path);
+          } else {
+            await performChunkedUpload(item.file, item.path);
+          }
+          // 업로드 완료 시 웹 화면 토스트 발생 & 로컬 알림
+          const successMsg = `${t('upload_complete')}: ${item.file.name}`;
+          toast(successMsg);
+          showWebPushNotification("AYA Share", successMsg);
+        } catch (err) {
+          console.error("업로드 에러:", err);
+          toast(t('upload_fail') + ": " + item.file.name);
+          if (err.name === 'AbortError') break;
+        }
+      }
+
+      isUploading = false;
+      modal.classList.remove('show');
+      stats = { completed: 0, total: 0 };
+      loadFiles(currentDir);
+    }
+
+    async function performFastUpload(file, path) {
+      abortController = new AbortController();
+      const signal = abortController.signal;
+
+      const fd = new FormData();
+      fd.append('file', file);
+      if (path) fd.append('path', path);
+
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        signal.addEventListener('abort', () => xhr.abort());
+
+        xhr.open('POST', `/upload?token=${TOKEN}`);
+
+        let startTime = Date.now(), lastLoaded = 0, lastTime = startTime;
+        xhr.upload.onprogress = e => {
+          if (!e.lengthComputable) return;
+          const pct = Math.round(e.loaded / e.total * 100);
+          const now = Date.now();
+          if (now - lastTime > 200) {
+            const speed = (e.loaded - lastLoaded) / ((now - lastTime) / 1000);
+            modalFill.style.width = pct + '%';
+            modalPct.textContent = pct + '%';
+            modalSpeed.textContent = formatSpeed(speed);
+            lastLoaded = e.loaded; lastTime = now;
+          }
+        };
+        xhr.onload = () => (xhr.status === 200 ? resolve() : reject(new Error('Status ' + xhr.status)));
+        xhr.onerror = () => reject(new Error('Network error'));
+        xhr.send(fd);
+      });
+    }
+
+    async function performChunkedUpload(file, path) {
+      abortController = new AbortController();
+      const signal = abortController.signal;
+
+      // 1. 청크 업로드 세션 시작
+      const startResp = await fetch(`/api/upload/start?token=${TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: file.name, total_size: file.size, path: path }),
+        signal
+      });
+      const { upload_id } = await startResp.json();
+
+      // 2. 개별 청크 업로드 루프
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE) || 1;
+      let startTime = Date.now();
+      let lastLoaded = 0;
+      let lastTime = startTime;
+
+      for (let i = 0; i < totalChunks; i++) {
+        if (signal.aborted) throw new Error('Aborted');
+
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        const fd = new FormData();
+        fd.append('upload_id', upload_id);
+        fd.append('chunk_index', i);
+        fd.append('total_chunks', totalChunks);
+        fd.append('file', chunk, file.name);
+
+        const chunkResp = await fetch(`/api/upload/chunk?token=${TOKEN}`, {
+          method: 'POST',
+          body: fd,
+          signal
+        });
+
+        if (!chunkResp.ok) throw new Error('Chunk failed');
+
+        // 속도 및 게이지 계산
+        const now = Date.now();
+        const loaded = end;
+        const pct = Math.round((loaded / file.size) * 100);
+
+        if (now - lastTime > 200) {
+          const speed = (loaded - lastLoaded) / ((now - lastTime) / 1000);
+          modalFill.style.width = pct + '%';
+          modalPct.textContent = pct + '%';
+          modalSpeed.textContent = formatSpeed(speed);
+          lastLoaded = loaded;
+          lastTime = now;
+        }
+      }
+
+      // 3. 파일 병합 및 세션 완료 처리
+      const finishResp = await fetch(`/api/upload/finish?token=${TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ upload_id: upload_id }),
+        signal
+      });
+    }
+
+    modalCancel.onclick = () => {
+      if (abortController) {
+        abortController.abort();
+      }
+      uploadQueue = [];
+      isUploading = false;
+      modal.classList.remove('show');
+      toast(t('cancelled'));
+    };
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
+
+    function formatSpeed(bps) {
+      if (bps < 1024) return bps.toFixed(0) + ' B/s';
+      if (bps < 1048576) return (bps / 1024).toFixed(1) + ' KB/s';
+      return (bps / 1048576).toFixed(1) + ' MB/s';
+    }
+
+    function showFolderModal(path, name) {
+      const m = document.getElementById('folder-modal');
+      document.getElementById('folder-modal-name').textContent = name + '/';
+      const btnZip = document.getElementById('btn-zip-dl');
+      const btnBrowse = document.getElementById('btn-browse-dl');
+
+      btnZip.innerHTML = '<i class="bi-download"></i> ' + t('btn_zip_all');
+      btnBrowse.innerHTML = '<i class="bi-folder2-open"></i> ' + t('btn_browse');
+
+      btnZip.onclick = () => { m.classList.remove('show'); downloadZip(path); };
+      btnBrowse.onclick = () => { m.classList.remove('show'); loadFiles(path); };
+      m.classList.add('show');
+    }
+
+    // ── 프리뷰 모듈 ──
+    function openPreview(name, path) {
+      const modal = document.getElementById('preview-modal');
+      const title = document.getElementById('preview-title');
+      const body = document.getElementById('preview-body');
+      title.textContent = name;
+      body.innerHTML = `<div style="padding:24px;text-align:center;color:#666">${t('loading')}</div>`;
+      modal.classList.add('show');
+      document.body.style.overflow = 'hidden';
+
+      const ext = name.split('.').pop().toLowerCase();
+      const url = `/download/${encodeURIComponent(path)}?token=${TOKEN}`;
+
+      if (['txt', 'md', 'json', 'js', 'py', 'html', 'css', 'xml', 'csv', 'log', 'ini', 'cfg', 'conf', 'yaml', 'yml'].includes(ext)) {
+        // 텍스트 프리뷰
+        fetch(url).then(r => r.text()).then(text => {
+          body.innerHTML = '<pre style="padding:16px;font-size:13px;line-height:1.5;white-space:pre-wrap;word-break:break-word;color:#ddd;max-height:70vh;overflow:auto">' + esc(text) + '</pre>';
+        }).catch(() => body.innerHTML = `<div style="padding:24px;color:#dc2626">${t('failed_load')}</div>`);
+      } else if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) {
+        // 이미지 프리뷰
+        body.innerHTML = '<img src="' + url + '" style="max-width:100%;max-height:75vh;display:block;margin:auto" onload="this.style.opacity=1" onerror="this.parentElement.innerHTML=\'<div style=\\\'padding:24px;color:#dc2626\\\'>' + t('failed_load') + '</div>\'" style="opacity:0;transition:opacity .2s">';
+      } else if (['mp4', 'webm', 'ogg', 'mov', 'm4v'].includes(ext)) {
+        // 비디오 프리뷰
+        body.innerHTML = '<video src="' + url + '" controls style="max-width:100%;max-height:75vh;display:block;margin:auto;background:#000" onerror="this.parentElement.innerHTML=\'<div style=\\\'padding:24px;color:#dc2626\\\'>' + t('cannot_play') + '</div>\'"></video>';
+      } else if (['mp3', 'wav', 'ogg', 'flac', 'm4a', 'aac'].includes(ext)) {
+        // 오디오 프리뷰
+        body.innerHTML = '<audio src="' + url + '" controls style="width:100%;max-width:400px;display:block;margin:16px auto" onerror="this.parentElement.innerHTML=\'<div style=\\\'padding:24px;color:#dc2626\\\'>' + t('cannot_play') + '</div>\'"></audio>';
+      } else if (['pdf'].includes(ext)) {
+        // PDF 프리뷰 (아이프레임 활용)
+        body.innerHTML = '<iframe src="' + url + '" style="width:100%;height:75vh;border:none;background:#fff" onerror="this.parentElement.innerHTML=\'<div style=\\\'padding:24px;color:#dc2626\\\'>' + t('failed_load') + '</div>\'"></iframe>';
+      } else {
+        // 지원하지 않는 유형
+        body.innerHTML = `<div style="padding:24px;text-align:center;color:#666">${t('preview_no')}<br><small>` + ext + '</small><br><br><a href="' + url + '" class="btn btn-primary" style="margin-top:12px">' + t('download_btn') + '</a></div>';
+      }
+    }
+
+    function closePreview() {
+      const modal = document.getElementById('preview-modal');
+      modal.classList.remove('show');
+      document.body.style.overflow = '';
+      document.getElementById('preview-body').innerHTML = '';
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        const uploadModal = document.getElementById('upload-modal');
+        const previewModal = document.getElementById('preview-modal');
+        if (uploadModal.classList.contains('show')) {
+          document.getElementById('modal-cancel').click();
+        } else if (previewModal.classList.contains('show')) {
+          closePreview();
+        }
+      }
+    });
+
+    function esc(s) {
+      return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+    }
+    function escAttr(s) {
+      return esc(s).replace(/'/g, '&apos;');
+    }
+    function enc(s) {
+      return encodeURIComponent(s).replace(/'/g, '%27');
+    }
+
+    // ── 파일 목록 로더 (폴더 탐색기 포함) ──
+    async function loadFiles(dir) {
+      currentDir = dir || '';
+      try {
+        const resp = await fetch(`/files?token=${TOKEN}&dir=${encodeURIComponent(currentDir)}`);
+        if (!resp.ok) { markLost(); return; }
+        markAlive();
+
+        const data = await resp.json();
+        const el = document.getElementById('file-list');
+        const heading = document.getElementById('download-heading');
+
+        const items = data.items || [];
+        renderFiles(items, currentDir);
+      } catch (e) {
+        markLost();
+      }
+    }
+
+    // ── Zip 압축 다운로드 모듈 ──
+    function downloadZip(dir) {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay show';
+      overlay.style.display = 'flex';
+      overlay.innerHTML = `
+    <div class="modal-box" style="text-align:center">
+      <div style="font-size:16px;font-weight:500;margin-bottom:12px" id="zip-status">${t('compressing')}</div>
+      <div class="modal-progress"><div class="fill" id="zip-fill" style="width:0%"></div></div>
+      <div style="font-size:12px;color:#888;margin-top:8px" id="zip-pct">0%</div>
+    </div>`;
+      document.body.appendChild(overlay);
+
+      const statusEl = document.getElementById('zip-status');
+      const fillEl = document.getElementById('zip-fill');
+      const pctEl = document.getElementById('zip-pct');
+      let cancelled = false;
+
+      const cancelBtn = document.createElement('button');
+      cancelBtn.className = 'modal-cancel';
+      cancelBtn.textContent = t('cancel_btn');
+      cancelBtn.onclick = () => { cancelled = true; overlay.remove(); };
+      overlay.querySelector('.modal-box').appendChild(cancelBtn);
+
+      fetch(`/api/download_dir?token=${TOKEN}&dir=${encodeURIComponent(dir)}`)
+        .then(async resp => {
+          if (!resp.ok) throw new Error('Download failed');
+          const cl = +resp.headers.get('Content-Length') || 0;
+          const reader = resp.body.getReader();
+          const chunks = [];
+          let received = 0;
+          while (true) {
+            if (cancelled) { reader.cancel(); return; }
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            received += value.length;
+            if (cl) {
+              const pct = Math.round(received / cl * 100);
+              fillEl.style.width = pct + '%';
+              pctEl.textContent = pct + '%';
+            } else {
+              fillEl.style.width = '100%';
+              pctEl.textContent = t('downloading');
+            }
+            statusEl.textContent = t('downloading');
+          }
+          const blob = new Blob(chunks);
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = (dir || 'AYA share').replace(/[/\\]/g, '_') + '.zip';
+          a.click();
+          URL.revokeObjectURL(url);
+          overlay.remove();
+        })
+        .catch(() => {
+          if (!cancelled) { overlay.remove(); toast(t('download_failed')); }
+        });
+    }
+
+    // ── 프로그레시브 다운로드 (XHR + Blob → 즉시 저장, fallback 직링크) ──
+    let _dlXhr = null;
+
+    function startDownload(name, path, size) {
+      const url = `/download/${encodeURIComponent(path)}?token=${TOKEN}`;
+
+      const modal = document.getElementById('download-modal');
+      const filenameEl = document.getElementById('dl-filename');
+      const filesizeEl = document.getElementById('dl-filesize');
+      const fillEl = document.getElementById('dl-fill');
+      const pctEl = document.getElementById('dl-pct');
+      const speedEl = document.getElementById('dl-speed');
+      const cancelBtn = document.getElementById('dl-cancel');
+
+      filenameEl.textContent = name;
+      filesizeEl.textContent = formatSize(size);
+      fillEl.style.width = '0%';
+      pctEl.textContent = '0%';
+      speedEl.textContent = '--';
+      modal.classList.add('show');
+
+      var _dlAbort = false;
+      _dlXhr = new XMLHttpRequest();
+      _dlXhr.open('GET', url);
+      _dlXhr.responseType = 'blob';
+
+      let startTime = Date.now(), lastTime = startTime, lastLoaded = 0;
+
+      _dlXhr.onprogress = function (e) {
+        if (!e.lengthComputable || !e.total) return;
+        const pct = Math.round(e.loaded / e.total * 100);
+        const now = Date.now();
+        if (now - lastTime > 200) {
+          fillEl.style.width = pct + '%';
+          pctEl.textContent = pct + '%';
+          filesizeEl.textContent = formatSize(e.total);
+          const dt = (now - lastTime) / 1000;
+          if (dt > 0) {
+            speedEl.textContent = formatSpeed((e.loaded - lastLoaded) / dt);
+            lastLoaded = e.loaded;
+            lastTime = now;
+          }
+        }
+      };
+
+      _dlXhr.onload = function () {
+        if (_dlXhr.readyState !== 4) return;
+        modal.classList.remove('show');
+        try {
+          const blob = _dlXhr.response;
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(function () {
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+          }, 2000);
+          toast(t('upload_complete') + ': ' + name);
+        } catch (e) {
+          // Blob save failed → fallback to direct download
+          var a = document.createElement('a');
+          a.href = url;
+          a.download = name;
+          a.style.display = 'none';
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        }
+      };
+
+      _dlXhr.onerror = _dlXhr.onabort = function () {
+        modal.classList.remove('show');
+        if (!_dlAbort) toast(t('download_failed'));
+      };
+
+      cancelBtn.onclick = function () {
+        _dlXhr && _dlXhr.abort();
+        _dlAbort = true;
+        modal.classList.remove('show');
+      };
+      _dlAbort = false;
+      _dlXhr.send();
+    }
+
+    // ── 클라이언트 디바이스 식별 ──
+    (function () {
+      const ua = navigator.userAgent;
+      let name = ua;
+      const m = ua.match(/\(([^;]+;[^;]+)\)/);
+      if (m) name = m[1].trim();
+      fetch(`/api/identify?token=${TOKEN}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.split(';')[0].trim(), type: ua })
+      }).catch(() => { });
+    })();
+
+    // 초기 파일 로드는 하단의 DOMContentLoaded에서 처리합니다.
+    // 주기적 폴링을 통한 킵얼라이브 체크
+    setInterval(() => {
+      fetch(`/files?token=${TOKEN}`, { method: 'HEAD' })
+        .then(r => r.ok && markAlive())
+        .catch(() => markLost());
+    }, 5000);
+
+    // ── 앱 시작 (초기 로드) ──
+    document.addEventListener('DOMContentLoaded', () => {
+      // 접속 즉시 최상위(Root) 목록을 불러옵니다.
+      loadFiles('');
+    });
+  </script>
+</body>
+
+</html>

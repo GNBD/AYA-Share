@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>AYA Share</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#000;color:#fff;min-height:100vh;overflow-x:hidden;user-select:none}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#222;border-radius:2px}
+/* drag-over */
+body.dragover .drop-overlay{opacity:1;pointer-events:auto}
+.drop-overlay{position:fixed;top:0;left:0;width:100%;height:100%;z-index:200;background:rgba(96,165,250,.08);border:3px dashed #60a5fa;opacity:0;pointer-events:none;transition:opacity .15s;display:flex;align-items:center;justify-content:center;font-size:18px;color:#60a5fa;font-weight:600}
+/* AppBar */
+.appbar{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #111;gap:8px}
+.appbar .title{font-size:20px;font-weight:700;flex:1}
+.appbar button{background:none;border:none;color:#a0a0a0;font-size:22px;width:36px;height:36px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.appbar button:hover{background:#111;color:#fff}
+/* Drawer */
+.drawer-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.5);z-index:98;opacity:0;pointer-events:none;transition:opacity .2s}
+.drawer-overlay.open{opacity:1;pointer-events:auto}
+.drawer{position:fixed;top:0;left:-260px;width:240px;height:100%;background:#0a0a0a;border-right:1px solid #181818;z-index:99;transition:left .2s ease;padding:16px 0;overflow-y:auto}
+.drawer.open{left:0}
+.drawer .sec{font-size:10px;font-weight:700;color:#555;padding:16px 20px 4px;letter-spacing:.5px}
+.drawer .sec:first-child{padding-top:8px}
+.drawer button{display:block;width:calc(100% - 16px);margin:2px 8px;padding:8px 12px;background:none;border:none;color:#ccc;font-size:12px;text-align:left;border-radius:8px;cursor:pointer;transition:.15s}
+.drawer button:hover{background:#111;color:#fff}
+.drawer .sep{height:1px;background:#181818;margin:6px 16px}
+.drawer .info{font-size:11px;color:#666;padding:2px 20px}
+.lang-select{display:block;width:calc(100% - 32px);margin:4px 16px;padding:8px 12px;background:#111;border:1px solid #222;border-radius:6px;color:#ccc;font-size:12px;cursor:pointer;transition:.15s;appearance:none;-webkit-appearance:none;-moz-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px}
+.lang-select:hover{border-color:#444;color:#fff}
+.lang-select:focus{outline:none;border-color:#60a5fa}
+/* Main */
+main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
+/* Card */
+.card{background:#0a0a0a;border:1px solid #181818;border-radius:24px;padding:20px}
+.card-row{display:flex;gap:16px;align-items:flex-start}
+.card-row .left{flex:1;min-width:0}
+/* Badge */
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:4px 10px;border-radius:8px;margin-bottom:8px}
+.badge.connecting{background:#1a1a2e;color:#fbbf24}
+.badge.running{background:#0a2e1a;color:#22c55e}
+/* Text */
+.status{font-size:16px;font-weight:700;color:#fff;margin-bottom:8px}
+.sec-title{font-size:11px;font-weight:700;color:#555;margin-bottom:4px}
+.device-scroll{max-height:54px;overflow-y:auto}
+.device-item{font-size:12px;color:#a0a0a0;padding:2px 0}
+/* QR */
+.qr-wrap{flex-shrink:0;cursor:pointer;border-radius:16px;overflow:hidden;transition:.15s;width:100px;height:100px;display:flex;align-items:center;justify-content:center;background:#000;border:1px solid #181818}
+.qr-wrap img{display:block;width:100%;height:100%;object-fit:contain}
+.qr-wrap:hover{opacity:.8}
+/* Upload zone */
+.upload-zone{text-align:center;padding:24px 0}
+.upload-zone .icon{font-size:36px;color:#333;margin-bottom:8px}
+.upload-zone p{margin-bottom:4px}
+.upload-zone .sub{font-size:12px;color:#555;margin-bottom:12px}
+.upload-btns{display:flex;gap:8px;justify-content:center}
+.upload-btns button{background:none;border:1px solid transparent;color:#ccc;padding:6px 16px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
+.upload-btns button:hover{border-color:#333;background:#111}
+/* Shared header */
+.shared-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.shared-header h3{font-size:14px;font-weight:700;color:#fff;flex:1}
+.shared-header .count{font-size:12px;color:#555}
+.shared-header button{background:none;border:none;color:#ccc;font-size:12px;padding:4px 10px;border-radius:6px;cursor:pointer;transition:.15s}
+.shared-header button:hover{background:#111}
+.shared-header .danger{color:#ef4444}
+.shared-header .danger:hover{background:#1a0000}
+/* Shared items */
+.shared-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#a0a0a0;padding:3px 0}
+.shared-item .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.shared-item .remove{background:none;border:none;color:#555;font-size:14px;cursor:pointer;padding:0 2px;line-height:1;border-radius:4px;transition:.15s;flex-shrink:0}
+.shared-item .remove:hover{color:#ef4444;background:#1a0000}
+.no-items{font-size:12px;color:#555;padding:8px 0}
+/* Progress */
+.progress-bar{width:100%;height:4px;background:#111;border-radius:2px;overflow:hidden;margin-bottom:12px}
+.progress-fill{height:100%;background:#60a5fa;border-radius:2px;width:0%;transition:width .3s}
+/* Log */
+.log-scroll{max-height:120px;overflow-y:auto}
+.log-item{font-size:11px;color:#555;font-family:monospace;padding:1px 0}
+/* Overlay */
+.overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:100;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .12s ease}
+.overlay.open{opacity:1;pointer-events:auto}
+.overlay-content{text-align:center;padding:40px}
+.overlay-content img{width:280px;height:280px;border-radius:16px;margin-bottom:12px;background:#000;object-fit:contain}
+.overlay-content .url{font-size:12px;color:#555;word-break:break-all;margin-bottom:16px}
+.overlay-content .close{background:none;border:1px solid #333;color:#aaa;padding:8px 24px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
+.overlay-content .close:hover{border-color:#666;color:#fff}
+/* Confirm dialog */
+.confirm-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.7);z-index:101;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .12s ease}
+.confirm-overlay.open{opacity:1;pointer-events:auto}
+.confirm-box{background:#0a0a0a;border:1px solid #181818;border-radius:16px;padding:28px;width:320px;text-align:center}
+.confirm-box h3{font-size:14px;font-weight:700;margin-bottom:8px}
+.confirm-box p{font-size:12px;color:#a0a0a0;margin-bottom:20px;line-height:1.5}
+.confirm-btn{display:flex;gap:8px;justify-content:flex-end}
+.confirm-btn button{padding:8px 20px;border-radius:8px;font-size:12px;cursor:pointer;border:none;transition:.15s}
+.confirm-btn .cancel{background:#111;color:#aaa}
+.confirm-btn .cancel:hover{background:#1a1a1a}
+.confirm-btn .danger{background:#ef4444;color:#fff}
+.confirm-btn .danger:hover{background:#dc2626}
+/* Upload Progress Bar (bottom, compact) */
+.up-bar-wrap{position:fixed;bottom:0;left:0;right:0;z-index:999;display:none;background:#0d0d0d;border-top:1px solid #222;padding:4px 12px;font-size:11px;align-items:center;gap:6px;height:32px}
+.up-bar-wrap.open{display:flex}
+.up-bar-wrap .up-icon{flex-shrink:0;color:#60a5fa}
+.up-bar-wrap .up-name{color:#eee;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:140px;flex-shrink:0}
+.up-bar-wrap .up-sep{color:#333}
+.up-bar-wrap .up-size{color:#666;flex-shrink:0}
+.up-bar-wrap .up-track{flex:1;height:4px;background:#1a1a1a;border-radius:2px;overflow:hidden;min-width:40px}
+.up-bar-wrap .up-fill{height:100%;background:#60a5fa;border-radius:2px;width:0%;transition:width .2s}
+.up-bar-wrap .up-pct{color:#aaa;font-family:monospace;flex-shrink:0;min-width:32px;text-align:right}
+.up-bar-wrap .up-speed{color:#555;flex-shrink:0;min-width:50px}
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#111;color:#eee;padding:10px 20px;border-radius:10px;font-size:12px;border:1px solid #222;z-index:999;opacity:0;transition:opacity .25s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="drop-overlay"><i class="bi-cloud-upload"></i> <span data-i18n="drop_overlay">파일을 놓으면 공유됩니다</span></div>
+
+<!-- AppBar -->
+<div class="appbar">
+  <button id="menuBtn" onclick="toggleDrawer()"><i class="bi-list"></i></button>
+  <span class="title">AYA Share</span>
+  <button id="regenerateBtn" onclick="regenerateToken()" title="Regenerate token"><i class="bi-arrow-repeat"></i></button>
+</div>
+
+<!-- Drawer -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="toggleDrawer()"></div>
+<nav class="drawer" id="drawer">
+  <div class="sec" data-i18n="drawer_sec_storage">STORAGE</div>
+  <button onclick="openRecvFolder()"><i class="bi-folder2-open"></i> <span data-i18n="drawer_open_recv_folder">받은 파일 폴더 열기</span></button>
+  <button onclick="changeRecvDir()"><i class="bi-folder2-open"></i> <span data-i18n="drawer_change_recv_dir">받는 위치 변경</span></button>
+  <div class="info" id="recvDirPath" style="font-size:10px;color:#555;padding:0 20px 8px;word-break:break-all">...</div>
+  <div class="sep"></div>
+  <div class="sec" data-i18n="drawer_sec_system">SYSTEM</div>
+  <button onclick="regenerateToken()"><i class="bi-arrow-repeat"></i> <span data-i18n="drawer_regenerate_token">토큰 재생성</span></button>
+
+  <button onclick="showConfirmClear()" style="color:#ef4444"><i class="bi-trash"></i> <span data-i18n="drawer_clear_sent_files">전송 파일 삭제</span></button>
+  <div class="sep"></div>
+  <div class="sec" data-i18n="drawer_sec_status">STATUS</div>
+  <div class="info" id="drawerIp"><span data-i18n="drawer_ip" data-i18n-vars='{"ip":"..."}'>IP: ...</span></div>
+  <div class="info"><span data-i18n="drawer_port" data-i18n-vars='{"port":"5000"}'>Port: 5000</span></div>
+  <div class="sep"></div>
+  <div class="sec" data-i18n="drawer_sec_links">LINKS</div>
+  <button onclick="openGitHub()"><i class="bi-box-arrow-up-right"></i> <span data-i18n="drawer_github">GitHub</span></button>
+  <button onclick="openSite()"><i class="bi-box-arrow-up-right"></i> <span>Site</span></button>
+  <div class="sep"></div>
+  <div class="sec">NOTIFICATIONS</div>
+  <button id="notifToggle" onclick="toggleNotifications()"><i class="bi-bell"></i> <span id="notifLabel">알림 켜기</span></button>
+  <div class="sep"></div>
+  <div class="sec" data-i18n="drawer_sec_language">LANGUAGE</div>
+  <select class="lang-select" id="langSelect" onchange="switchLanguage(this.value)">
+    <option value="ko" data-i18n-ko="한국어" data-i18n-en="Korean">한국어</option>
+    <option value="en" data-i18n-ko="영어" data-i18n-en="English">English</option>
+  </select>
+</nav>
+
+<!-- Main -->
+<main>
+  <!-- Card 1: Connection -->
+  <div class="card">
+    <div class="card-row">
+      <div class="left">
+        <div class="badge connecting" id="badge"><i class="bi-circle-fill"></i> <span data-i18n="badge_connecting">CONNECTING</span></div>
+        <div class="status" id="statusLabel" data-i18n="status_connecting">연결 중...</div>
+        <div class="sec-title" data-i18n="sec_connected_devices">연결된 기기</div>
+        <div class="device-scroll" id="deviceList"></div>
+      </div>
+      <div class="qr-wrap" id="qrWrap" onclick="showQR()">
+        <img id="qrImg" src="" alt="QR">
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Upload zone -->
+  <div class="card">
+    <div class="upload-zone">
+      <div class="icon"><i class="bi-cloud-arrow-up"></i></div>
+      <p data-i18n="upload_title">드래그하거나 선택하여 공유</p>
+      <div class="sub" data-i18n="upload_subtitle">Drag & Drop!</div>
+      <div class="upload-btns">
+        <button onclick="pickFiles()"><i class="bi-file-earmark"></i> <span data-i18n="upload_pick_files">파일 선택</span></button>
+        <button onclick="pickFolder()"><i class="bi-folder2-open"></i> <span data-i18n="upload_pick_folder">폴더 선택</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Sharing list -->
+  <div class="card">
+    <div class="shared-header">
+      <h3 data-i18n="shared_header_title">현재 공유 중</h3>
+      <span class="count" id="sharedCount" data-i18n="shared_item_count" data-i18n-vars='{"count":0}'>0 개</span>
+      <button onclick="pickFiles()"><i class="bi-plus"></i> <span data-i18n="shared_btn_add">추가</span></button>
+      <button class="danger" onclick="clearAll()"><i class="bi-xmark"></i> <span data-i18n="shared_btn_clear_all">모두 취소</span></button>
+    </div>
+    <div id="sharedList">
+      <div class="no-items" data-i18n="shared_no_items">공유 중인 파일이 없습니다</div>
+    </div>
+  </div>
+
+  <!-- Card 4: Activity -->
+  <div class="card">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="log-scroll" id="logContainer"></div>
+  </div>
+</main>
+
+<!-- QR Overlay -->
+<div class="overlay" id="qrOverlay">
+  <div class="overlay-content">
+    <img id="qrBigImg" src="" alt="QR">
+    <div class="url" id="qrUrlText"></div>
+    <button class="close" onclick="closeQR()"><i class="bi-x"></i></button>
+  </div>
+</div>
+
+<!-- Confirm dialog -->
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3 data-i18n="confirm_title">전송 파일 삭제</h3>
+    <p><span data-i18n="confirm_message">받은 모든 파일이 삭제됩니다.<br>되돌릴 수 없습니다.</span></p>
+    <div class="confirm-btn">
+      <button class="cancel" onclick="closeConfirm()" data-i18n="confirm_cancel">취소</button>
+      <button class="danger" onclick="doClearFiles()" data-i18n="confirm_delete">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- Upload Progress Bar (top) -->
+<div class="up-bar-wrap" id="upBar">
+  <span class="up-icon"><i class="bi-cloud-upload"></i></span>
+  <span class="up-name" id="upFilename">file.txt</span>
+  <span class="up-sep">|</span>
+  <span class="up-size" id="upFilesize">0 B / 0 B</span>
+  <div class="up-track"><div class="up-fill" id="upFill"></div></div>
+  <span class="up-pct" id="upPct">0%</span>
+  <span class="up-speed" id="upSpeed">--</span>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+let TOKEN = '{{ token }}';
+const LAN_IP = '{{ lan_ip }}';
+const PORT = {{ port }};
+let LANGUAGE = '{{ language }}';
+
+// ── i18n ──
+let _STRINGS = {};
+let _LOADING_LANG = null;
+
+async function _loadLang(code) {
+  if (code === _LOADING_LANG) return;
+  _LOADING_LANG = code;
+  try {
+    const r = await fetch('/api/language', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({language: code})
+    });
+    const d = await r.json();
+    if (d && d.ok) {
+      _STRINGS = d.strings || {};
+      LANGUAGE = code;
+      _LOADING_LANG = null;
+      applyTranslations();
+      refreshAll();
+    }
+  } catch { _LOADING_LANG = null }
+}
+
+function t(key, vars) {
+  let val = _STRINGS[key];
+  if (val === undefined) val = key;
+  if (vars) {
+    for (const k of Object.keys(vars)) {
+      val = val.replace(new RegExp('\\{' + k + '\\}', 'g'), vars[k]);
+    }
+  }
+  return val;
+}
+
+function applyTranslations() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    let key = el.getAttribute('data-i18n');
+    let val = t(key);
+    let rawVars = el.getAttribute('data-i18n-vars');
+    if (rawVars) {
+      try { val = t(key, JSON.parse(rawVars)); } catch {}
+    }
+    el.textContent = val;
+  });
+  // Update language select
+  const sel = document.getElementById('langSelect');
+  if (sel) {
+    sel.value = LANGUAGE;
+    sel.querySelectorAll('option').forEach(opt => {
+      opt.textContent = opt.getAttribute('data-i18n-' + LANGUAGE) || opt.value;
+    });
+  }
+  // Update shared count
+  const cntEl = document.getElementById('sharedCount');
+  if (cntEl && cntEl._sharedCount !== undefined) {
+    cntEl.textContent = t('shared_item_count', {count: cntEl._sharedCount});
+  }
+}
+
+async function switchLanguage(code) {
+  if (code === LANGUAGE) return;
+  await _loadLang(code);
+}
+
+let logs = [];
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+function addLog(msg) {
+  logs.push(msg);
+  if (logs.length > 100) logs = logs.slice(-100);
+  const container = document.getElementById('logContainer');
+  container.innerHTML = logs.slice(-10).map(l => '<div class="log-item">' + l + '</div>').join('');
+}
+
+// ── API helpers ──
+async function apiGet(path) {
+  try {
+    const r = await fetch(path + (path.includes('?') ? '&' : '?') + 'token=' + TOKEN, {signal: AbortSignal.timeout(5000)});
+    return r.ok ? r.json() : null;
+  } catch { return null }
+}
+
+async function apiPost(path, data) {
+  try {
+    const r = await fetch(path + '?token=' + TOKEN, {
+      method: 'POST',
+      headers: data ? {'Content-Type':'application/json'} : {},
+      body: data ? JSON.stringify(data) : null
+    });
+    return r.ok ? r.json() : null;
+  } catch { return null }
+}
+
+function getUrl() { return 'http://' + LAN_IP + ':' + PORT + '/?token=' + TOKEN }
+
+// ── Status ──
+async function refreshStatus() {
+  const s = await apiGet('/api/admin/status');
+  if (!s) return;
+  const badge = document.getElementById('badge');
+  badge.className = 'badge running';
+  badge.innerHTML = '<i class="bi-circle-fill"></i> ' + t('badge_running');
+  const statusLabel = document.getElementById('statusLabel');
+  statusLabel.textContent = t('status_active');
+  statusLabel.removeAttribute('data-i18n');
+  const ipEl = document.getElementById('drawerIp').querySelector('[data-i18n="drawer_ip"]') || document.getElementById('drawerIp');
+  ipEl.textContent = t('drawer_ip', {ip: s.lan_ip || LAN_IP});
+  updateNotifButton(s.notifications_enabled !== false);
+  updateRecvDirPath(s.recv_dir);
+  updateQR();
+}
+
+function updateNotifButton(enabled) {
+  const btn = document.getElementById('notifToggle');
+  const lbl = document.getElementById('notifLabel');
+  if (!btn || !lbl) return;
+  btn.style.color = enabled ? '#22c55e' : '#ef4444';
+  lbl.textContent = enabled ? t('drawer_notif_on') : t('drawer_notif_off');
+}
+
+async function toggleNotifications() {
+  const s = await apiGet('/api/admin/status');
+  if (!s) return;
+  const current = s.notifications_enabled !== false;
+  const r = await apiPost('/api/admin/notifications', {enabled: !current});
+  if (r && r.ok) {
+    updateNotifButton(r.enabled);
+    toast(r.enabled ? t('drawer_notif_on') : t('drawer_notif_off'));
+  }
+}
+
+async function refreshDevices() {
+  const d = await apiGet('/api/connected');
+  if (!d) return;
+  const list = document.getElementById('deviceList');
+  const devices = d.devices || [];
+  if (devices.length) {
+    list.innerHTML = devices.map(dd => {
+      const nm = dd.name || dd.hostname || t('device_unknown');
+      const ip = dd.ip || '';
+      const icon = (nm === 'Windows PC' || nm === 'Mac' || nm === 'Unknown') ? '<i class="bi-laptop"></i>' : '<i class="bi-phone"></i>';
+      return '<div class="device-item">' + icon + '  ' + nm + '  (' + ip + ')</div>';
+    }).join('');
+  } else {
+    list.innerHTML = '<div class="device-item" style="color:#555">' + t('device_no_devices') + '</div>';
+  }
+}
+
+async function refreshShared() {
+  const d = await apiGet('/api/admin/info');
+  if (!d) return;
+  const files = d.shared_files || [];
+  const list = document.getElementById('sharedList');
+  if (files.length) {
+    list.innerHTML = files.map(f => {
+      const isDir = f.type === 'dir' || f.name.endsWith('/');
+      const icon = isDir ? '<i class="bi-folder2-open"></i>' : '<i class="bi-file-earmark"></i>';
+      const display = isDir ? f.name.replace(/\/+$/, '') : f.name;
+      const sz = isDir ? t('shared_item_folder') : formatSize(f.size || 0);
+      const safe = escAttr(f.name);
+      return '<div class="shared-item"><span class="name">' + icon + '  ' + esc(display) + '  (' + sz + ')</span><button class="remove" onclick="unregisterFile(\'' + safe + '\')" title="' + esc(t('shared_item_remove_title')) + '"><i class="bi-xmark"></i></button></div>';
+    }).join('');
+  } else {
+    list.innerHTML = '<div class="no-items">' + t('shared_no_items') + '</div>';
+  }
+  const cntEl = document.getElementById('sharedCount');
+  cntEl._sharedCount = files.length;
+  cntEl.textContent = t('shared_item_count', {count: files.length});
+}
+
+function refreshAll() {
+  refreshStatus();
+  refreshDevices();
+  refreshShared();
+}
+
+// ── QR ──
+function updateQR() {
+  const url = '/api/qr?t=' + Date.now() + '&token=' + TOKEN;
+  document.getElementById('qrImg').src = url;
+  document.getElementById('qrBigImg').src = url;
+}
+
+function showQR() {
+  document.getElementById('qrUrlText').textContent = getUrl();
+  document.getElementById('qrOverlay').classList.add('open');
+}
+
+function closeQR() {
+  document.getElementById('qrOverlay').classList.remove('open');
+}
+
+// ── Drawer ──
+function toggleDrawer() {
+  document.getElementById('drawer').classList.toggle('open');
+  document.getElementById('drawerOverlay').classList.toggle('open');
+}
+
+// ── File pickers (pywebview) ──
+async function pickFiles() {
+  if (typeof pywebview !== 'undefined' && pywebview.api) {
+    const paths = await pywebview.api.pick_files();
+    if (paths && paths.length) await registerPaths(paths);
+  } else {
+    toast(t('toast_pick_file_desktop_only'));
+  }
+}
+
+async function pickFolder() {
+  if (typeof pywebview !== 'undefined' && pywebview.api) {
+    const path = await pywebview.api.pick_folder();
+    if (path) await registerPaths([path]);
+  } else {
+    toast(t('toast_pick_folder_desktop_only'));
+  }
+}
+
+async function registerPaths(paths) {
+  const r = await apiPost('/api/admin/register', {paths});
+  if (r) {
+    refreshAll();
+    const cnt = r.count || 0;
+    addLog('[' + ts() + '] ' + t('log_files_shared', {count: cnt}));
+    if (cnt) {
+      toast(t('toast_files_shared', {count: cnt}));
+    }
+  }
+}
+
+// ── Drag & Drop ──
+let dragCounter = 0;
+
+document.body.addEventListener('dragenter', function(e) {
+  e.preventDefault();
+  dragCounter++;
+  document.body.classList.add('dragover');
+});
+
+document.body.addEventListener('dragleave', function(e) {
+  e.preventDefault();
+  dragCounter--;
+  if (dragCounter === 0) document.body.classList.remove('dragover');
+});
+
+document.body.addEventListener('dragover', function(e) {
+  e.preventDefault();
+});
+
+document.body.addEventListener('drop', async function(e) {
+  e.preventDefault();
+  dragCounter = 0;
+  document.body.classList.remove('dragover');
+  const items = e.dataTransfer.items;
+  if (!items || !items.length) return;
+  toast(t('toast_file_uploading'));
+  const entries = [], directFiles = [];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+    if (entry) entries.push(entry);
+    else if (item.kind === 'file') directFiles.push(item.getAsFile());
+  }
+  const files = directFiles;
+  for (const entry of entries) {
+    await walkEntry(entry, '', files);
+  }
+  // 10GB limit check
+  const MAX_BYTES = 10 * 1024 * 1024 * 1024;
+  let total = 0;
+  for (const f of files) total += f.size || 0;
+  if (total > MAX_BYTES) {
+    toast(t('toast_drag_too_large'));
+    return;
+  }
+  if (files.length) await uploadAndShare(files);
+  else toast(t('toast_cannot_upload'));
+});
+
+async function walkEntry(entry, path, files) {
+  if (entry.isFile) {
+    const file = await new Promise(res => entry.file(res));
+    file._relPath = path ? path + '/' + entry.name : '';
+    files.push(file);
+  } else if (entry.isDirectory) {
+    const reader = entry.createReader();
+    const entries = await new Promise(res => reader.readEntries(res));
+    for (const e of entries) {
+      await walkEntry(e, path ? path + '/' + entry.name : entry.name, files);
+    }
+  }
+}
+
+async function uploadAndShare(files) {
+  const formData = new FormData();
+  for (const f of files) {
+    formData.append('file', f, f._relPath || f.name);
+  }
+  try {
+    const r = await fetch('/api/admin/share_upload?token=' + TOKEN, {
+      method: 'POST', body: formData
+    });
+    const data = await r.json();
+    if (data && data.ok) {
+      refreshAll();
+      const cnt = data.count || 0;
+      addLog('[' + ts() + '] ' + t('log_drag_files_shared', {count: cnt}));
+      toast(t('toast_files_shared', {count: cnt}));
+    }
+  } catch (err) {
+    toast(t('toast_upload_failed'));
+  }
+}
+
+// ── Individual file removal ──
+async function unregisterFile(name) {
+  const r = await apiPost('/api/admin/unregister', {name});
+  if (r && r.ok) {
+    refreshShared();
+    addLog('[' + ts() + '] ' + t('log_item_unshared', {name: name}));
+    toast(t('toast_file_removed'));
+  }
+}
+
+// ── Actions ──
+async function clearAll() {
+  const r = await apiPost('/api/admin/clear');
+  if (r) {
+    refreshAll();
+    addLog('[' + ts() + '] ' + t('log_all_shared_cancelled'));
+    toast(t('toast_all_shared_cancelled'));
+  }
+}
+
+async function regenerateToken() {
+  const r = await apiPost('/api/admin/regenerate');
+  if (r && r.token) {
+    TOKEN = r.token;
+    refreshAll();
+    addLog('[' + ts() + '] ' + t('log_token_regenerated'));
+    toast(t('toast_token_regenerated'));
+  }
+}
+
+async function openRecvFolder() {
+  await apiPost('/api/admin/recv_open');
+}
+
+function updateRecvDirPath(path) {
+  const el = document.getElementById('recvDirPath');
+  if (el) el.textContent = path || '...';
+}
+
+async function changeRecvDir() {
+  if (typeof pywebview !== 'undefined' && pywebview.api) {
+    const path = await pywebview.api.pick_folder();
+    if (path) {
+      const r = await apiPost('/api/admin/recv_dir', {path: path});
+      if (r && r.ok) {
+        updateRecvDirPath(r.recv_dir);
+        toast(r.recv_dir);
+      }
+    }
+  } else {
+    toast(t('toast_pick_folder_desktop_only'));
+  }
+}
+
+async function doClearFiles() {
+  closeConfirm();
+  const r = await apiPost('/api/admin/recv_clear');
+  if (r) {
+    addLog('[' + ts() + '] ' + t('log_files_deleted', {count: r.count || 0}));
+    toast(t('toast_recv_files_deleted'));
+  }
+}
+
+function showConfirmClear() {
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+
+function closeConfirm() {
+  document.getElementById('confirmOverlay').classList.remove('open');
+}
+
+function openGitHub() {
+  window.open('https://github.com/GNBD/AYA-Share', '_blank');
+}
+
+function openSite() {
+  window.open('https://ayashare.netlify.app/', '_blank');
+}
+
+// ── Helpers ──
+function formatSize(n) {
+  if (n < 1024) return n + 'B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + 'KB';
+  return (n / 1048576).toFixed(1) + 'MB';
+}
+
+function ts() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2,'0') + ':' +
+         String(d.getMinutes()).padStart(2,'0') + ':' +
+         String(d.getSeconds()).padStart(2,'0');
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+function escAttr(s) {
+  return esc(s).replace(/'/g, '&apos;');
+}
+
+function formatSpeed(bps) {
+  if (!bps || bps <= 0) return '--';
+  if (bps < 1024) return bps.toFixed(0) + ' B/s';
+  if (bps < 1048576) return (bps / 1024).toFixed(1) + ' KB/s';
+  return (bps / 1048576).toFixed(1) + ' MB/s';
+}
+
+// ── SSE for upload progress ──
+function connectUploadSSE() {
+  const es = new EventSource(`/api/events?token=${TOKEN}`);
+  es.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'upload_progress') {
+        handleUploadProgress(d.uploads || []);
+      }
+    } catch (_) {}
+  };
+  es.onerror = () => { es.close(); setTimeout(connectUploadSSE, 3000) };
+}
+
+let _upHideTimer = null;
+
+function handleUploadProgress(uploads) {
+  const bar = document.getElementById('upBar');
+  const active = uploads.filter(u => u.status === 'uploading');
+  const completed = uploads.filter(u => u.status === 'completed');
+
+  if (_upHideTimer) { clearTimeout(_upHideTimer); _upHideTimer = null; }
+
+  if (active.length > 0) {
+    const u = active[active.length - 1];
+    document.getElementById('upFilename').textContent = u.filename;
+    document.getElementById('upFilesize').textContent = formatSize(u.received) + ' / ' + formatSize(u.total_size);
+    const pct = u.total_size > 0 ? Math.round(u.received / u.total_size * 100) : 0;
+    document.getElementById('upFill').style.width = pct + '%';
+    document.getElementById('upPct').textContent = pct + '%';
+    document.getElementById('upSpeed').textContent = formatSpeed(u.speed);
+    bar.classList.add('open');
+  } else if (completed.length > 0) {
+    const u = completed[completed.length - 1];
+    document.getElementById('upFilename').textContent = u.filename;
+    document.getElementById('upFilesize').textContent = t('upload_complete');
+    document.getElementById('upFill').style.width = '100%';
+    document.getElementById('upPct').textContent = '100%';
+    document.getElementById('upSpeed').textContent = '';
+    _upHideTimer = setTimeout(() => { bar.classList.remove('open'); }, 2000);
+  } else {
+    bar.classList.remove('open');
+  }
+}
+
+// ── Polling ──
+setInterval(refreshStatus, 5000);
+setInterval(refreshDevices, 3000);
+setInterval(refreshShared, 5000);
+
+// ── Init ──
+(async function init() {
+  // Load translations from server
+  const r = await fetch('/api/language?token=' + TOKEN);
+  if (r.ok) {
+    const d = await r.json();
+    _STRINGS = d.strings || {};
+    LANGUAGE = d.language || LANGUAGE;
+  }
+  applyTranslations();
+  refreshAll();
+  connectUploadSSE();
+})();
+</script>
+</body>
+</html>
