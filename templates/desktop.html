@@ -85,7 +85,10 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
 .overlay.open{opacity:1;pointer-events:auto}
 .overlay-content{text-align:center;padding:40px}
 .overlay-content img{width:280px;height:280px;border-radius:16px;margin-bottom:12px;background:#000;object-fit:contain}
-.overlay-content .url{font-size:12px;color:#555;word-break:break-all;margin-bottom:16px}
+.overlay-content .url{font-size:12px;color:#555;word-break:break-all;margin-bottom:8px}
+.overlay-content .copy-btn{background:none;border:1px solid #333;color:#aaa;padding:8px 24px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s;margin-right:8px}
+.overlay-content .copy-btn:hover{border-color:#60a5fa;color:#60a5fa}
+.overlay-content .copy-btn.copied{border-color:#22c55e;color:#22c55e}
 .overlay-content .close{background:none;border:1px solid #333;color:#aaa;padding:8px 24px;border-radius:8px;font-size:12px;cursor:pointer;transition:.15s}
 .overlay-content .close:hover{border-color:#666;color:#fff}
 /* Confirm dialog */
@@ -213,7 +216,10 @@ main{padding:12px 16px 24px;display:flex;flex-direction:column;gap:12px}
   <div class="overlay-content">
     <img id="qrBigImg" src="" alt="QR">
     <div class="url" id="qrUrlText"></div>
-    <button class="close" onclick="closeQR()"><i class="bi-x"></i></button>
+    <div>
+      <button class="copy-btn" id="qrCopyBtn" onclick="copyUrl()"><i class="bi-clipboard"></i> <span data-i18n="qr_copy">복사</span></button>
+      <button class="close" onclick="closeQR()"><i class="bi-x"></i></button>
+    </div>
   </div>
 </div>
 
@@ -446,6 +452,23 @@ function showQR() {
 
 function closeQR() {
   document.getElementById('qrOverlay').classList.remove('open');
+  document.getElementById('qrCopyBtn').classList.remove('copied');
+  document.getElementById('qrCopyBtn').innerHTML = '<i class="bi-clipboard"></i> ' + t('qr_copy');
+}
+
+function copyUrl() {
+  const url = getUrl();
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.getElementById('qrCopyBtn');
+    btn.classList.add('copied');
+    btn.innerHTML = '<i class="bi-check-lg"></i> ' + t('qr_copied');
+    setTimeout(() => {
+      btn.classList.remove('copied');
+      btn.innerHTML = '<i class="bi-clipboard"></i> ' + t('qr_copy');
+    }, 2000);
+  }).catch(() => {
+    toast(t('toast_copy_failed'));
+  });
 }
 
 // ── Drawer ──

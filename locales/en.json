@@ -59,6 +59,9 @@
   "error_empty_filename": "empty filename",
   "error_size_exceeded": "total size exceeds 10GB limit",
   "msg_shared_cancelled": "Sharing has been cancelled",
+  "qr_copy": "Copy",
+  "qr_copied": "Copied",
+  "toast_copy_failed": "Copy failed",
   "upload_complete": "Upload complete ✓",
   "drawer_notif_on": "Notifications ON",
   "drawer_notif_off": "Notifications OFF"
